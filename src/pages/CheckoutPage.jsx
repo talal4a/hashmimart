@@ -81,7 +81,7 @@ export default function CheckoutPage() {
       {/* Page Header */}
       <div className="add-item-header">
         <div className="add-item-title-area">
-          <div className="add-item-icon">
+          <div className="add-item-icon shrink-0">
             <svg
               width="24"
               height="24"
@@ -97,8 +97,10 @@ export default function CheckoutPage() {
               <path d="M16 10a4 4 0 0 1-8 0" />
             </svg>
           </div>
-          <h1 className="add-item-title">Checkout</h1>
-          <p className="add-item-subtitle">Complete your order details</p>
+          <div className="add-item-title-text">
+            <h1 className="add-item-title">Checkout</h1>
+            <p className="add-item-subtitle">Complete your order details</p>
+          </div>
         </div>
       </div>
 
@@ -227,17 +229,6 @@ export default function CheckoutPage() {
             <div className="add-item-grid" style={{ marginTop: "1rem" }}>
               <label
                 className={`add-item-payment-card ${paymentMethod === "Cash on Delivery" ? "add-item-payment-card--active" : ""}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                  padding: "1rem",
-                  border: `2px solid ${paymentMethod === "Cash on Delivery" ? "#06b6d4" : "#e2e8f0"}`,
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  background: "white",
-                  transition: "all 0.2s ease",
-                }}
               >
                 <input
                   type="radio"
@@ -245,17 +236,12 @@ export default function CheckoutPage() {
                   value="Cash on Delivery"
                   checked={paymentMethod === "Cash on Delivery"}
                   onChange={(e) => setPaymentMethod(e.target.value)}
-                  style={{
-                    width: "20px",
-                    height: "20px",
-                    accentColor: "#06b6d4",
-                  }}
                 />
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ fontWeight: "600", fontSize: "1rem" }}>
+                <div className="add-item-payment-card-content">
+                  <span className="add-item-payment-card-title">
                     Cash on Delivery
                   </span>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                  <span className="add-item-payment-card-description">
                     Pay with cash when your order arrives
                   </span>
                 </div>
@@ -264,15 +250,8 @@ export default function CheckoutPage() {
               <label
                 className={`add-item-payment-card ${paymentMethod === "JazzCash" ? "add-item-payment-card--active" : ""}`}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "1rem",
-                  padding: "1rem",
-                  border: `2px solid ${paymentMethod === "JazzCash" ? "#ed1c24" : "#e2e8f0"}`,
-                  borderRadius: "12px",
-                  cursor: "pointer",
-                  background: "white",
-                  transition: "all 0.2s ease",
+                  borderColor:
+                    paymentMethod === "JazzCash" ? "#ed1c24" : "#e2e8f0",
                 }}
               >
                 <input
@@ -282,22 +261,19 @@ export default function CheckoutPage() {
                   checked={paymentMethod === "JazzCash"}
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   style={{
-                    width: "20px",
-                    height: "20px",
                     accentColor: "#ed1c24",
                   }}
                 />
-                <div style={{ display: "flex", flexDirection: "column" }}>
+                <div className="add-item-payment-card-content">
                   <span
+                    className="add-item-payment-card-title"
                     style={{
-                      fontWeight: "600",
-                      fontSize: "1rem",
                       color: "#ed1c24",
                     }}
                   >
                     JazzCash
                   </span>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                  <span className="add-item-payment-card-description">
                     Pay securely via JazzCash transfer
                   </span>
                 </div>
@@ -335,46 +311,16 @@ export default function CheckoutPage() {
                   Please transfer your total order amount to the following
                   JazzCash account before placing the order.
                 </p>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    background: "white",
-                    padding: "1rem",
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                  }}
-                >
-                  <div>
-                    <span
-                      style={{
-                        display: "block",
-                        fontSize: "0.8rem",
-                        color: "#64748b",
-                        marginBottom: "0.2rem",
-                      }}
-                    >
-                      Account Number
-                    </span>
-                    <strong
-                      style={{ fontSize: "1.2rem", letterSpacing: "1px" }}
-                    >
+                <div className="jazzcash-account-details">
+                  <div className="jazzcash-detail-block">
+                    <span className="jazzcash-label">Account Number</span>
+                    <span className="jazzcash-value jazzcash-value--mono">
                       0308 7696420
-                    </strong>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span
-                      style={{
-                        display: "block",
-                        fontSize: "0.8rem",
-                        color: "#64748b",
-                        marginBottom: "0.2rem",
-                      }}
-                    >
-                      Account Title
                     </span>
-                    <strong>Hashmi Mart</strong>
+                  </div>
+                  <div className="jazzcash-detail-block">
+                    <span className="jazzcash-label">Account Title</span>
+                    <span className="jazzcash-value">Hashmi Mart</span>
                   </div>
                 </div>
               </div>

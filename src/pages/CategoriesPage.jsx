@@ -28,13 +28,17 @@ function CategoryIcon({ name }) {
 
 export default function CategoriesPage() {
   const { isAuthenticated, isStaff } = useAuth();
-  const { wishlist, categories, orders } = useStore();
+  const { categories, orders, products } = useStore();
   const [orderFilter, setOrderFilter] = useState("all");
 
   const filteredOrders =
     orderFilter === "all"
       ? orders
       : orders.filter((order) => order.status === orderFilter);
+
+  const discountProducts = products.filter(
+    (product) => product.salePrice && product.salePrice < product.price,
+  );
 
   return (
     <div className="categories-page">
@@ -245,13 +249,13 @@ export default function CategoriesPage() {
         </AnimateOnScroll>
       )}
 
-      {wishlist.length > 0 && (
+      {discountProducts.length > 0 && (
         <AnimateOnScroll>
           <div className="wishlist-section">
-            <h2>Your Wishlist ({wishlist.length})</h2>
+            <h2>Discount Products ({discountProducts.length})</h2>
             <div className="product-grid">
-              {wishlist.map((item) => (
-                <ProductCard key={item.productId} product={item} />
+              {discountProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           </div>

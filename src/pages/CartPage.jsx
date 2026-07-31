@@ -23,44 +23,50 @@ export default function CartPage() {
       <ul className="cart-list">
         {cart.map((item) => (
           <li key={item.productId} className="cart-item">
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt={item.name}
-                className="cart-item-image"
-                loading="lazy"
-              />
-            ) : (
-              <div className="cart-item-emoji" aria-hidden="true">
-                {item.image}
+            <div className="cart-item-left">
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  className="cart-item-image"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="cart-item-emoji" aria-hidden="true">
+                  {item.image}
+                </div>
+              )}
+              <div className="cart-item-details">
+                <h3>{item.name}</h3>
+                <p className="cart-item-meta">
+                  {item.salePrice && item.salePrice > 0 ? (
+                    <>
+                      <span className="cart-item-sale-price">
+                        {formatPrice(item.salePrice)}
+                      </span>
+                      <span className="cart-item-original-price">
+                        {formatPrice(item.price)}
+                      </span>
+                    </>
+                  ) : (
+                    formatPrice(item.price)
+                  )}{" "}
+                  / {item.unit}
+                  {item.category === "wholesale" && (
+                    <span className="tag tag-wholesale">Wholesale</span>
+                  )}
+                </p>
               </div>
-            )}
-            <div className="cart-item-info">
-              <h3>{item.name}</h3>
-              <p className="cart-item-meta">
-                {item.salePrice && item.salePrice > 0 ? (
-                  <>
-                    <span className="cart-item-sale-price">
-                      {formatPrice(item.salePrice)}
-                    </span>
-                    <span className="cart-item-original-price">
-                      {formatPrice(item.price)}
-                    </span>
-                  </>
-                ) : (
-                  formatPrice(item.price)
-                )}{" "}
-                / {item.unit}
-                {item.category === "wholesale" && (
-                  <span className="tag tag-wholesale">Wholesale</span>
-                )}
-              </p>
+            </div>
+            <div className="cart-item-right">
               <div className="cart-item-actions">
                 <QuantityControl
                   value={item.quantity}
                   onChange={(qty) => updateCartQuantity(item.productId, qty)}
                   size="sm"
                 />
+              </div>
+              <div className="cart-item-delete">
                 <button
                   type="button"
                   className="icon-btn icon-btn-danger"
@@ -70,14 +76,14 @@ export default function CartPage() {
                   <IconTrash />
                 </button>
               </div>
+              <p className="cart-item-total">
+                {formatPrice(
+                  (item.salePrice && item.salePrice > 0
+                    ? item.salePrice
+                    : item.price) * item.quantity,
+                )}
+              </p>
             </div>
-            <p className="cart-item-total">
-              {formatPrice(
-                (item.salePrice && item.salePrice > 0
-                  ? item.salePrice
-                  : item.price) * item.quantity,
-              )}
-            </p>
           </li>
         ))}
       </ul>

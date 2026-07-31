@@ -32,9 +32,9 @@ export default function ProductCard({ product }) {
     : 0;
 
   return (
-    <Link to={`/product/${productId}`} className="link-reset">
-      <article className="product-card">
-        <div className="product-card-top">
+    <article className="product-card">
+      <div className="product-card-top">
+        <Link to={`/product/${productId}`} className="link-reset">
           {showPlaceholder ? (
             <div className="product-card-placeholder">
               <svg
@@ -62,23 +62,25 @@ export default function ProductCard({ product }) {
               onError={() => setImgError(true)}
             />
           )}
-          {hasDiscount && (
-            <span className="discount-chip">{discountPercentage}% OFF</span>
-          )}
-          <button
-            type="button"
-            className={`wishlist-btn ${wished ? "wishlist-btn-active" : ""}`}
-            onClick={handleWishlistToggle}
-            aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
-          >
-            <IconHeart filled={wished} size={20} />
-          </button>
-        </div>
+        </Link>
+        {hasDiscount && (
+          <span className="discount-chip">{discountPercentage}% OFF</span>
+        )}
+        <button
+          type="button"
+          className={`wishlist-btn ${wished ? "wishlist-btn-active" : ""}`}
+          onClick={handleWishlistToggle}
+          aria-label={wished ? "Remove from wishlist" : "Add to wishlist"}
+        >
+          <IconHeart filled={wished} size={20} />
+        </button>
+      </div>
 
+      <Link to={`/product/${productId}`} className="link-reset">
         <div className="product-card-body">
           <h3 className="product-card-name">{product.name}</h3>
           <p className="product-card-desc">{product.description}</p>
-          <p className="product-card-price">
+          <div className="product-card-price">
             {hasDiscount ? (
               <>
                 <span className="product-card-sale">
@@ -89,51 +91,48 @@ export default function ProductCard({ product }) {
                 </span>
               </>
             ) : (
-              formatPrice(product.price)
+              <span className="product-card-regular">
+                {formatPrice(product.price)}
+              </span>
             )}
             <span className="product-card-unit"> / {product.unit}</span>
-          </p>
-
-          <div className="product-card-controls">
-            {isWholesale && product.wholesaleOptions ? (
-              <div className="wholesale-options">
-                <label className="field-label" htmlFor={`qty-${productId}`}>
-                  Quantity ({product.unit})
-                </label>
-                <select
-                  id={`qty-${productId}`}
-                  className="select-input"
-                  value={quantity}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setQuantity(Number(e.target.value));
-                  }}
-                >
-                  {product.wholesaleOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt} {product.unit}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <QuantityControl
-                value={quantity}
-                onChange={(q) => setQuantity(q)}
-                size="sm"
-              />
-            )}
           </div>
-
-          <button
-            type="button"
-            className="btn btn-primary btn-block product-card-add-btn"
-            onClick={handleAdd}
-          >
-            Add to Cart
-          </button>
         </div>
-      </article>
-    </Link>
+      </Link>
+
+      <div className="product-card-actions">
+        <div className="product-card-controls">
+          {isWholesale && product.wholesaleOptions ? (
+            <select
+              className="wholesale-select"
+              value={quantity}
+              onChange={(e) => {
+                setQuantity(Number(e.target.value));
+              }}
+            >
+              {product.wholesaleOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt} {product.unit}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <QuantityControl
+              value={quantity}
+              onChange={(q) => setQuantity(q)}
+              size="sm"
+            />
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="btn btn-primary btn-block product-card-add-btn"
+          onClick={handleAdd}
+        >
+          Add to Cart
+        </button>
+      </div>
+    </article>
   );
 }

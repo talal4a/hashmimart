@@ -131,14 +131,16 @@ export default function AddItemPage({
               <path d="M12 8v8M8 12h8" />
             </svg>
           </div>
-          <h1 className="add-item-title">
-            {isEditing ? "Edit Item" : "Create Item"}
-          </h1>
-          <p className="add-item-subtitle">
-            {isEditing
-              ? "Update product details"
-              : "Add a new product to your menu"}
-          </p>
+          <div className="add-item-title-text">
+            <h1 className="add-item-title">
+              {isEditing ? "Edit Item" : "Create Item"}
+            </h1>
+            <p className="add-item-subtitle">
+              {isEditing
+                ? "Update product details"
+                : "Add a new product to your menu"}
+            </p>
+          </div>
         </div>
       </div>
 

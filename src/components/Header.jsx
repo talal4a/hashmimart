@@ -16,7 +16,7 @@ import { useChat } from "../context/ChatContext";
 import { landingPathForRole } from "../lib/permissions";
 
 export default function Header({ title, showBack = false, backTo = "/" }) {
-  const { cartCount, unreadNotifications } = useStore();
+  const { cartCount, unreadNotifications, wishlist } = useStore();
   const { isAuthenticated, isStaff, profile, logOut } = useAuth();
   const { unreadCount } = useChat();
   const location = useLocation();
@@ -58,14 +58,34 @@ export default function Header({ title, showBack = false, backTo = "/" }) {
     return (
       <header className="header header--admin">
         <div className="header__brand">
-          <Logo size={100} className="header-logo" />
-          <div>
+          <Logo className="header-logo" />
+          <div className="header__brand-text">
             <span className="header__subtitle">Admin Dashboard</span>
           </div>
         </div>
         <Link to="/" className="header__link header__link--desktop">
           Customer App
         </Link>
+        <button
+          type="button"
+          className="header__icon-btn header__menu-btn"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
+          onClick={() => setMenuOpen((v) => !v)}
+        >
+          {menuOpen ? <IconX size={20} /> : <IconMenu size={20} />}
+        </button>
+        <div
+          ref={menuRef}
+          className={`header__dropdown ${menuOpen ? "header__dropdown--open" : ""}`}
+        >
+          <Link
+            to="/"
+            className="header__dropdown-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Customer App
+          </Link>
+        </div>
       </header>
     );
   }
@@ -73,7 +93,7 @@ export default function Header({ title, showBack = false, backTo = "/" }) {
   return (
     <header className="header">
       <div className="header__left">
-        {!showBack && <Logo size={100} className="header-logo" />}
+        {!showBack && <Logo className="header-logo" />}
         {showBack && (
           <Link to={backTo} className="header__icon-btn" aria-label="Go back">
             <IconBack />
@@ -97,9 +117,12 @@ export default function Header({ title, showBack = false, backTo = "/" }) {
         </Link>
         <Link to="/wishlist" className="header__icon-btn" aria-label="Wishlist">
           <IconHeart />
+          {wishlist.length > 0 && (
+            <span className="badge">{wishlist.length}</span>
+          )}
         </Link>
         <Link to="/cart" className="header__icon-btn" aria-label="Cart">
-          <IconCart />
+          <IconCart size={20} />
           {cartCount > 0 && <span className="badge">{cartCount}</span>}
         </Link>
         {isAuthenticated && (

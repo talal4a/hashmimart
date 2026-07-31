@@ -221,13 +221,8 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
               />
             </label>
           )}
-          <div>
-            <h3 className="admin-order__id">
-              {statusIcon} Order #{order.id}
-              {order.isVoiceOrder && (
-                <span className="admin-order__voice-tag">🎙 Voice</span>
-              )}
-            </h3>
+          <div className="admin-order__id">
+            <h3 className="admin-order__number">#{order.id}</h3>
             <time className="admin-order__time">
               {new Date(order.createdAt).toLocaleString("en-PK", {
                 day: "numeric",
@@ -270,7 +265,7 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
                 </span>
               </div>
             )}
-            <div className="admin-order__detail">
+            <div className="admin-order__detail admin-order__detail--full">
               <span className="admin-order__detail-label">Payment</span>
               <span className="admin-order__detail-value admin-order__payment-badge">
                 {order.paymentMethod}
@@ -307,47 +302,49 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
               )}
             </div>
           ) : (
-            <table className="admin-order__table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Qty</th>
-                  <th>Price</th>
-                  <th>Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(order.items || []).map((item) => (
-                  <tr key={item.productId}>
-                    <td>
-                      <span className="admin-order__item-emoji">
-                        {item.image}
-                      </span>
-                      {item.name}
+            <div className="w-full overflow-x-auto scrollbar-none my-2">
+              <table className="admin-order__table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(order.items || []).map((item) => (
+                    <tr key={item.productId}>
+                      <td>
+                        <span className="admin-order__item-emoji">
+                          {item.image}
+                        </span>
+                        {item.name}
+                      </td>
+                      <td>
+                        {item.quantity} {item.unit}
+                      </td>
+                      <td>{formatPrice(item.price)}</td>
+                      <td className="admin-order__subtotal">
+                        {formatPrice(item.price * item.quantity)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan="3">
+                      <strong>Total</strong>
                     </td>
                     <td>
-                      {item.quantity} {item.unit}
-                    </td>
-                    <td>{formatPrice(item.price)}</td>
-                    <td className="admin-order__subtotal">
-                      {formatPrice(item.price * item.quantity)}
+                      <strong className="admin-order__total-val">
+                        {formatPrice(order.total)}
+                      </strong>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan="3">
-                    <strong>Total</strong>
-                  </td>
-                  <td>
-                    <strong className="admin-order__total-val">
-                      {formatPrice(order.total)}
-                    </strong>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </div>
           )}
         </div>
       </div>
