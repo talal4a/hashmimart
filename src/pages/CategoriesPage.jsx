@@ -31,9 +31,12 @@ export default function CategoriesPage() {
   const { categories, orders, products } = useStore();
   const [orderFilter, setOrderFilter] = useState("all");
 
+  /* Dashboard shows only the 5 most recent orders by default. Orders arrive
+     newest-first from the store, so slicing off the head is enough. Picking a
+     filter shows every matching order. */
   const filteredOrders =
     orderFilter === "all"
-      ? orders
+      ? orders.slice(0, 5)
       : orders.filter((order) => order.status === orderFilter);
 
   const discountProducts = products.filter(

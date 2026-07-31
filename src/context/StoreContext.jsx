@@ -781,24 +781,33 @@ export function StoreProvider({ children }) {
     );
   }, []);
 
-  const deleteOrders = useCallback(async (dbIds) => {
-    const { data, error } = await supabase
-      .from("orders")
-      .update({ hidden_by_admin: true })
-      .in("id", dbIds)
-      .in("status", ["delivered", "cancelled"])
-      .select();
+  const deleteOrders = useCallback(
+    async (dbIds) => {
+      const { data, error } = await supabase
+        .from("orders")
+        .update({ hidden_by_admin: true })
+        .in("id", dbIds)
+        .in("status", ["delivered", "cancelled"])
+        .select();
 
-    if (error) {
-      console.error("deleteOrders failed", error);
-      throw new Error(error.message);
-    }
+      if (error) {
+        console.error("deleteOrders failed", error);
+        throw new Error(error.message);
+      }
 
-    const hidden = data || [];
-    const hiddenIds = new Set(hidden.map((o) => o.display_id));
-    setOrders((prev) => prev.filter((o) => !hiddenIds.has(o.id)));
-    return hidden.length;
-  }, []);
+      const hidden = data || [];
+      /* hidden_by_admin only hides the order from the staff queue — the
+         customer keeps it. loadOrders applies that filter for staff alone, so
+         this optimistic prune must do the same, or hiding an order would also
+         strip it from the customer's dashboard until the next reload. */
+      if (audience === "staff") {
+        const hiddenIds = new Set(hidden.map((o) => o.display_id));
+        setOrders((prev) => prev.filter((o) => !hiddenIds.has(o.id)));
+      }
+      return hidden.length;
+    },
+    [audience],
+  );
 
   const cancelUserOrder = useCallback(async (orderId) => {
     const { error } = await supabase
