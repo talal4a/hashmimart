@@ -291,42 +291,25 @@ export default function AddItemPage({
                   </p>
                 )}
                 {searchResults.length > 0 ? (
-                  <div
-                    className="add-item-photo-grid"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(10, minmax(0, 1fr))",
-                      gap: "0.5rem",
-                      marginTop: "1rem",
-                    }}
-                  >
+                  <div className="add-item-photo-grid">
                     {searchResults.map((photo) => (
-                      <div
+                      <button
+                        type="button"
                         key={photo.id}
                         onClick={() => handleSelectImage(photo.urls.regular)}
-                        style={{
-                          cursor: "pointer",
-                          position: "relative",
-                          aspectRatio: "1",
-                          height: "80px",
-                          borderRadius: "6px",
-                          overflow: "hidden",
-                          border:
-                            formData.image === photo.urls.regular
-                              ? "3px solid #06b6d4"
-                              : "2px solid #e2e8f0",
-                        }}
+                        aria-pressed={formData.imageUrl === photo.urls.regular}
+                        className={`add-item-photo-option ${
+                          formData.imageUrl === photo.urls.regular
+                            ? "add-item-photo-option--selected"
+                            : ""
+                        }`}
                       >
                         <img
                           src={photo.urls.thumb}
                           alt={photo.alt_description || "Photo"}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
+                          loading="lazy"
                         />
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
