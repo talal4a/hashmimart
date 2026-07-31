@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatPrice } from "../../data/products";
 import { useStore } from "../../context/StoreContext";
@@ -1056,6 +1056,7 @@ export default function AdminDashboard() {
   const [editProductTarget, setEditProductTarget] = useState(null);
   const [toast, setToast] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
+  const activeTabRef = useRef(null);
 
   // Active section is driven entirely by the URL (/admin/:section), so a
   // manually-typed or bookmarked section deep-link works and the browser
@@ -1067,6 +1068,17 @@ export default function AdminDashboard() {
   const goToSection = (path) => navigate(path);
 
   const { loadRecentOrders } = useStore();
+
+  // Scroll active tab into view when tab changes
+  useEffect(() => {
+    if (activeTabRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  }, [activeTab]);
 
   // Load recent orders for the dashboard widget
   useEffect(() => {
@@ -1211,6 +1223,7 @@ export default function AdminDashboard() {
         {visibleSections.map((s) => (
           <button
             key={s.key}
+            ref={activeTab === s.key ? activeTabRef : null}
             className={`admin-nav__item ${activeTab === s.key ? "admin-nav__item--active" : ""}`}
             onClick={() => goToSection(s.path)}
           >
