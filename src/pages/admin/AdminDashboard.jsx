@@ -1195,7 +1195,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="admin-dashboard">
+    <div className="admin-dashboard max-w-full overflow-x-hidden">
       {/* ── Dashboard Header ── */}
       <div className="admin-header">
         <div className="admin-header__title">
@@ -1207,11 +1207,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <nav className="admin-nav">
+      <nav className="admin-nav w-full overflow-x-auto whitespace-nowrap scrollbar-none border-b">
         {visibleSections.map((s) => (
           <button
             key={s.key}
-            className={`admin-nav__item ${activeTab === s.key ? "admin-nav__item--active" : ""}`}
+            className={`admin-nav__item flex-shrink-0 ${activeTab === s.key ? "admin-nav__item--active" : ""}`}
             onClick={() => goToSection(s.path)}
           >
             {s.label}
@@ -1350,16 +1350,18 @@ export default function AdminDashboard() {
               </p>
             </div>
           ) : (
-            <div className="admin-orders">
-              {filteredOrders.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  onUpdateStatus={updateOrderStatus}
-                  selected={selectedIds.has(order.dbId)}
-                  onToggleSelect={toggleSelect}
-                />
-              ))}
+            <div className="w-full overflow-x-auto">
+              <div className="admin-orders">
+                {filteredOrders.map((order) => (
+                  <OrderCard
+                    key={order.id}
+                    order={order}
+                    onUpdateStatus={updateOrderStatus}
+                    selected={selectedIds.has(order.dbId)}
+                    onToggleSelect={toggleSelect}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </>
@@ -1395,32 +1397,35 @@ export default function AdminDashboard() {
               <p className="empty-state">No items in wishlist yet.</p>
             </div>
           ) : (
-            <div className="product-grid">
-              {wishlist.map((item) => (
-                <div
-                  key={item.productId}
-                  className="product-card admin-product-card"
-                >
-                  <div className="product-card-top">
-                    {item.imageUrl ? (
-                      <img
-                        src={item.imageUrl}
-                        alt={item.name}
-                        className="product-card-image"
-                      />
-                    ) : (
-                      <span className="product-card-emoji">{item.image}</span>
-                    )}
+            <div className="w-full overflow-x-auto">
+              <div className="product-grid">
+                {wishlist.map((item) => (
+                  <div
+                    key={item.productId}
+                    className="product-card admin-product-card"
+                  >
+                    <div className="product-card-top">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="product-card-image"
+                        />
+                      ) : (
+                        <span className="product-card-emoji">{item.image}</span>
+                      )}
+                    </div>
+                    <div className="product-card-body">
+                      <h3 className="product-card-name">{item.name}</h3>
+                      <p className="product-card-desc">{item.description}</p>
+                      <p className="product-card-price">
+                        {formatPrice(item.price)}
+                      </p>
+                      <span className="product-card-unit">/{item.unit}</span>
+                    </div>
                   </div>
-                  <div className="product-card-body">
-                    <h3 className="product-card-name">{item.name}</h3>
-                    <span className="product-card-price">
-                      {formatPrice(item.price)}
-                    </span>
-                    <span className="product-card-unit">/{item.unit}</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </>
@@ -1480,16 +1485,18 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
-              <div className="product-grid">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onEdit={handleEditProduct}
-                    onToggleStock={handleToggleStock}
-                    onDeleteProduct={handleDeleteProduct}
-                  />
-                ))}
+              <div className="w-full overflow-x-auto">
+                <div className="product-grid">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onEdit={handleEditProduct}
+                      onToggleStock={handleToggleStock}
+                      onDeleteProduct={handleDeleteProduct}
+                    />
+                  ))}
+                </div>
               </div>
             </>
           )}
