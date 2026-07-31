@@ -1,0 +1,3 @@
+[functions]
+  [functions.cleanup-chat]
+  verify_jwt = true
