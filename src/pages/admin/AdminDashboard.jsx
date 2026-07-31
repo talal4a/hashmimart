@@ -1056,7 +1056,7 @@ export default function AdminDashboard() {
   const [editProductTarget, setEditProductTarget] = useState(null);
   const [toast, setToast] = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
-  const activeTabRef = useRef(null);
+  const navRef = useRef(null);
 
   // Active section is driven entirely by the URL (/admin/:section), so a
   // manually-typed or bookmarked section deep-link works and the browser
@@ -1071,12 +1071,17 @@ export default function AdminDashboard() {
 
   // Scroll active tab into view when tab changes
   useEffect(() => {
-    if (activeTabRef.current) {
-      activeTabRef.current.scrollIntoView({
-        behavior: "smooth",
-        inline: "center",
-        block: "nearest",
-      });
+    if (navRef.current && activeTab) {
+      const activeButton = navRef.current.querySelector(
+        `[data-tab="${activeTab}"]`,
+      );
+      if (activeButton) {
+        activeButton.scrollIntoView({
+          behavior: "smooth",
+          inline: "center",
+          block: "nearest",
+        });
+      }
     }
   }, [activeTab]);
 
@@ -1219,11 +1224,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <nav className="admin-nav">
+      <nav className="admin-nav" ref={navRef}>
         {visibleSections.map((s) => (
           <button
             key={s.key}
-            ref={activeTab === s.key ? activeTabRef : null}
+            data-tab={s.key}
             className={`admin-nav__item ${activeTab === s.key ? "admin-nav__item--active" : ""}`}
             onClick={() => goToSection(s.path)}
           >
