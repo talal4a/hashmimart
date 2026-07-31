@@ -574,6 +574,11 @@ select {
 .hero-slider {
   width: 100%;
   height: 340px;
+  will-change: transform;
+}
+
+.hero-slider .swiper-wrapper {
+  will-change: transform;
 }
 
 .hero-slide-img {
