@@ -1207,11 +1207,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <nav className="admin-nav w-full overflow-x-auto whitespace-nowrap scrollbar-none border-b">
+      <nav className="admin-nav">
         {visibleSections.map((s) => (
           <button
             key={s.key}
-            className={`admin-nav__item flex-shrink-0 ${activeTab === s.key ? "admin-nav__item--active" : ""}`}
+            className={`admin-nav__item ${activeTab === s.key ? "admin-nav__item--active" : ""}`}
             onClick={() => goToSection(s.path)}
           >
             {s.label}

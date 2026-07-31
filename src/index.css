@@ -2499,25 +2499,28 @@ select {
   gap: 0;
   background: var(--surface);
   padding: 0 2rem;
+  min-height: 44px;
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
 }
 
 .admin-nav__item {
-  padding: 0.85rem 1.25rem;
+  padding: 0.5rem 1rem;
   border: none;
   background: transparent;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
   position: relative;
   transition: color 0.2s;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .admin-nav__item:hover {
@@ -2531,9 +2534,9 @@ select {
 .admin-nav__item--active::after {
   content: "";
   position: absolute;
-  bottom: -1px;
-  left: 1rem;
-  right: 1rem;
+  bottom: 0;
+  left: 0.5rem;
+  right: 0.5rem;
   height: 3px;
   background: var(--accent);
   border-radius: 3px 3px 0 0;
