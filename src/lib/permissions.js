@@ -16,6 +16,7 @@ export const ADMIN_SECTIONS = [
     label: "Product Categories",
   },
   { key: "discounts", path: "/admin/discounts", label: "Discounts" },
+  { key: "societies", path: "/admin/societies", label: "Societies" },
   { key: "wishlist", path: "/admin/wishlist", label: "Wishlist" },
 ];
 
@@ -26,6 +27,7 @@ const SECTIONS_BY_ROLE = {
     "products",
     "productCategories",
     "discounts",
+    "societies",
     "wishlist",
   ],
   [ROLES.ORDERMANAGER]: ["orders"],

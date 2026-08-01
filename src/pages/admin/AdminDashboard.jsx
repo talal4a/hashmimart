@@ -278,6 +278,14 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
               {order.customer?.address || "No address provided"}
             </span>
           </div>
+          {order.customer?.society && (
+            <div className="admin-order__address-row">
+              <span className="admin-order__detail-label">Society</span>
+              <span className="admin-order__detail-value">
+                {order.customer.society}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="admin-order__divider" />
@@ -1023,6 +1031,251 @@ function ProductCategoriesManager({
   );
 }
 
+function SocietiesManager({ societies, orders, onAdd, onEdit, onDelete }) {
+  const [search, setSearch] = useState("");
+  const [newName, setNewName] = useState("");
+  const [editingSociety, setEditingSociety] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const societiesTrend = useMemo(
+    () => generateTrendData(societies),
+    [societies],
+  );
+
+  // Orders already placed into each society. Shown as context so an admin can
+  // see which areas are actually being served before renaming or removing one.
+  const orderCountMap = useMemo(() => {
+    const map = {};
+    orders.forEach((o) => {
+      const key = o.customer?.society;
+      if (key) map[key] = (map[key] || 0) + 1;
+    });
+    return map;
+  }, [orders]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return societies;
+    const q = search.toLowerCase();
+    return societies.filter((s) => s.name.toLowerCase().includes(q));
+  }, [societies, search]);
+
+  const showToast = (message, type) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleAdd = async () => {
+    const result = await onAdd(newName);
+    if (result?.error) {
+      showToast(result.error, "error");
+    } else {
+      showToast("Society added", "success");
+      setNewName("");
+    }
+  };
+
+  const handleEdit = async () => {
+    if (!editingSociety) return;
+    const result = await onEdit(editingSociety.id, editName);
+    if (result?.error) {
+      showToast(result.error, "error");
+    } else {
+      showToast("Society updated", "success");
+      setEditingSociety(null);
+      setEditName("");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    const result = await onDelete(deleteTarget.id);
+    if (result?.error) {
+      showToast(result.error, "error");
+    } else {
+      showToast("Society deleted", "success");
+    }
+    setDeleteTarget(null);
+  };
+
+  return (
+    <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          message={
+            orderCountMap[deleteTarget.name]
+              ? `Delete "${deleteTarget.name}"? ${orderCountMap[deleteTarget.name]} existing order(s) reference it — they keep their saved society, but customers can no longer pick it. This cannot be undone.`
+              : `Delete "${deleteTarget.name}"? This action cannot be undone.`
+          }
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      <div className="admin-stats-row">
+        <SparklineCard
+          icon="🏘️"
+          color="green"
+          title="Societies"
+          value={societies.length}
+          data={societiesTrend}
+        />
+        <SparklineCard
+          icon="🧾"
+          color="blue"
+          title="Orders Placed"
+          value={orders.length}
+          data={generateTrendData(orders)}
+        />
+      </div>
+
+      <div className="search-box search-box--mb">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search societies..."
+          className="search-input"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="category-add-row">
+        <input
+          type="text"
+          className="text-input category-add-row__input"
+          placeholder="New society name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAdd();
+            }
+          }}
+        />
+        <button className="btn btn-primary btn-icon-inline" onClick={handleAdd}>
+          <IconPlus size={18} />
+          Add
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty-page">
+          <p className="empty-state">
+            {search
+              ? `No societies matching "${search}"`
+              : "No societies yet. Add one so customers can pick it at checkout."}
+          </p>
+        </div>
+      ) : (
+        <div className="category-list">
+          {filtered.map((society) => {
+            const count = orderCountMap[society.name] || 0;
+            const isEditing = editingSociety?.id === society.id;
+            return (
+              <div key={society.id} className="category-row">
+                {isEditing ? (
+                  <div className="category-row__edit">
+                    <input
+                      type="text"
+                      className="text-input category-row__edit-input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleEdit();
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleEdit}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setEditingSociety(null);
+                        setEditName("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="category-row__info">
+                      <div className="category-row__name">{society.name}</div>
+                      <div className="category-row__meta">
+                        {count} order{count !== 1 ? "s" : ""}
+                        {society.createdAt && (
+                          <span>
+                            {" "}
+                            ·{" "}
+                            {new Date(society.createdAt).toLocaleDateString(
+                              "en-PK",
+                              {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                              },
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-secondary btn-sm category-row__action"
+                      onClick={() => {
+                        setEditingSociety(society);
+                        setEditName(society.name);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-danger btn-sm category-row__delete"
+                      onClick={() => setDeleteTarget(society)}
+                    >
+                      <IconTrash size={16} />
+                      Delete
+                    </button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const {
     orders,
@@ -1038,6 +1291,10 @@ export default function AdminDashboard() {
     addProductCategory,
     editProductCategory,
     deleteProductCategory,
+    societies,
+    addSociety,
+    editSociety,
+    deleteSociety,
   } = useStore();
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -1395,6 +1652,14 @@ export default function AdminDashboard() {
         />
       ) : activeTab === "discounts" ? (
         <DiscountManager products={products} onUpdateProduct={updateProduct} />
+      ) : activeTab === "societies" ? (
+        <SocietiesManager
+          societies={societies}
+          orders={orders}
+          onAdd={addSociety}
+          onEdit={editSociety}
+          onDelete={deleteSociety}
+        />
       ) : activeTab === "wishlist" ? (
         <>
           <div className="admin-stats-row">

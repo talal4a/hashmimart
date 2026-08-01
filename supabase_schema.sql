@@ -33,6 +33,14 @@ CREATE TABLE IF NOT EXISTS product_categories (
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
+-- ── 2b. Societies ──────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS societies (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name        TEXT UNIQUE NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+
 -- ── 3. Products ────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS products (
@@ -128,6 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read     ON notifications(is_read);
 
 ALTER TABLE shopping_modes     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE societies          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items        ENABLE ROW LEVEL SECURITY;
@@ -143,6 +152,10 @@ CREATE POLICY "allow_all_anon" ON shopping_modes
 
 DROP POLICY IF EXISTS "allow_all_anon" ON product_categories;
 CREATE POLICY "allow_all_anon" ON product_categories
+  FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "allow_all_anon" ON societies;
+CREATE POLICY "allow_all_anon" ON societies
   FOR ALL TO anon USING (true) WITH CHECK (true);
 
 DROP POLICY IF EXISTS "allow_all_anon" ON products;

@@ -6,8 +6,14 @@ import { useAuth } from "../context/AuthContext";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { cart, cartTotal, placeOrder, voiceOrderAudio, voiceOrderAddress } =
-    useStore();
+  const {
+    cart,
+    cartTotal,
+    placeOrder,
+    voiceOrderAudio,
+    voiceOrderAddress,
+    societies,
+  } = useStore();
   const { profile, user } = useAuth();
 
   // Initialize form with user data
@@ -15,6 +21,7 @@ export default function CheckoutPage() {
     fullName: profile?.full_name || user?.user_metadata?.full_name || "",
     phone: profile?.phone || user?.user_metadata?.phone || "",
     email: user?.email || "",
+    society: "",
     address: voiceOrderAddress || "",
   }));
 
@@ -36,6 +43,11 @@ export default function CheckoutPage() {
     else if (!/^03\d{9}$/.test(form.phone.replace(/\s/g, ""))) {
       next.phone = "Enter a valid Pakistani mobile (03XX XXXXXXX)";
     }
+    // Only enforced when the admin has actually added societies. If the list is
+    // empty, requiring it would deadlock every checkout.
+    if (societies.length > 0 && !form.society) {
+      next.society = "Please select your society";
+    }
     if (!form.address.trim()) next.address = "Delivery address is required";
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -54,6 +66,7 @@ export default function CheckoutPage() {
           fullName: form.fullName.trim(),
           phone: form.phone.trim(),
           city: "Lahore",
+          society: form.society || null,
           address: form.address.trim(),
           paymentMethod,
         },
@@ -197,6 +210,57 @@ export default function CheckoutPage() {
             </div>
 
             <div className="add-item-field">
+              <label className="add-item-label">Society</label>
+              <div className="checkout-select-wrap">
+                <select
+                  id="society"
+                  className="add-item-input checkout-select"
+                  value={form.society}
+                  onChange={update("society")}
+                  disabled={societies.length === 0}
+                >
+                  <option value="">
+                    {societies.length === 0
+                      ? "No societies available yet"
+                      : "Select your society"}
+                  </option>
+                  {societies.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <svg
+                  className="checkout-select-caret"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </div>
+              {errors.society && (
+                <span
+                  className="add-item-error-text"
+                  style={{
+                    color: "#ef4444",
+                    fontSize: "0.85rem",
+                    marginTop: "0.25rem",
+                  }}
+                >
+                  {errors.society}
+                </span>
+              )}
+            </div>
+
+            <div className="add-item-field">
               <label className="add-item-label">Delivery Address</label>
               <textarea
                 id="address"
@@ -308,20 +372,36 @@ export default function CheckoutPage() {
                     marginBottom: "1rem",
                   }}
                 >
-                  Please transfer your total order amount to the following
-                  JazzCash account before placing the order.
+                  Please transfer your total order amount using the Till ID
+                  below before placing the order.
                 </p>
                 <div className="jazzcash-account-details">
-                  <div className="jazzcash-detail-block">
-                    <span className="jazzcash-label">Account Number</span>
-                    <span className="jazzcash-value jazzcash-value--mono">
-                      0308 7696420
+                  <div className="jazzcash-till-brands">
+                    <span className="jazzcash-till-brand jazzcash-till-brand--jazz">
+                      JazzCash
+                    </span>
+                    <span className="jazzcash-till-brand-divider" />
+                    <span className="jazzcash-till-brand jazzcash-till-brand--raast">
+                      Raast
                     </span>
                   </div>
-                  <div className="jazzcash-detail-block">
-                    <span className="jazzcash-label">Account Title</span>
-                    <span className="jazzcash-value">Hashmi Mart</span>
+
+                  <div>
+                    <div className="jazzcash-till-merchant">HASHMI MART</div>
+                    <div className="jazzcash-till-heading">Till ID</div>
+                    <div className="jazzcash-till-digits">
+                      {"9837757081".split("").map((digit, index) => (
+                        <span className="jazzcash-till-digit" key={index}>
+                          {digit}
+                        </span>
+                      ))}
+                    </div>
                   </div>
+
+                  <p className="jazzcash-till-dial">
+                    Dial <code>*786*10#</code> and enter the Till ID to pay via
+                    your <strong>JazzCash</strong> account.
+                  </p>
                 </div>
               </div>
             )}

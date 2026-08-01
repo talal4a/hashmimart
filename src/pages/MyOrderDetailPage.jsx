@@ -109,7 +109,9 @@ export default function MyOrderDetailPage() {
         <h3>Delivery Address</h3>
         <p>{order.customer?.address || 'No address provided'}</p>
         <p className="order-detail-muted">
-          {order.customer?.city || 'Lahore'}
+          {order.customer?.society
+            ? `${order.customer.society}, ${order.customer?.city || 'Lahore'}`
+            : order.customer?.city || 'Lahore'}
         </p>
       </div>
 

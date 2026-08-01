@@ -110,6 +110,7 @@ export function StoreProvider({ children }) {
   const [products, setProducts] = useState(loadLocalProducts);
   const [categories, setCategories] = useState(loadLocalCategories);
   const [productCategories, setProductCategories] = useState([]);
+  const [societies, setSocieties] = useState([]);
   const [voiceOrderAudio, setVoiceOrderAudio] = useState(null);
   const [voiceOrderAddress, setVoiceOrderAddress] = useState("");
   const [toast, setToast] = useState(null);
@@ -232,6 +233,23 @@ export function StoreProvider({ children }) {
       }
     }
 
+    async function loadSocieties() {
+      const { data } = await supabase
+        .from("societies")
+        .select("*")
+        .order("name", { ascending: true });
+      if (cancelled) return;
+      if (data) {
+        setSocieties(
+          data.map((s) => ({
+            id: s.id,
+            name: s.name,
+            createdAt: s.created_at,
+          })),
+        );
+      }
+    }
+
     async function loadWishlist() {
       try {
         const { data: rows } = await supabase
@@ -345,6 +363,7 @@ export function StoreProvider({ children }) {
             customer: {
               fullName: o.customer_name,
               phone: o.customer_phone,
+              society: o.customer_society,
               address: o.customer_address,
             },
             items: itemsByOrder[o.id] || [],
@@ -385,6 +404,7 @@ export function StoreProvider({ children }) {
     loadProducts();
     loadModes();
     loadProductCats();
+    loadSocieties();
     loadWishlist();
     loadOrders();
     loadNotifs();
@@ -616,6 +636,7 @@ export function StoreProvider({ children }) {
         customer_email: user.email,
         user_id: user.id,
         customer_city: customerInfo.city || "Lahore",
+        customer_society: customerInfo.society || null,
         customer_address: customerInfo.address || null,
         total: orderTotal,
         payment_method: customerInfo.paymentMethod || "Cash on Delivery",
@@ -974,6 +995,7 @@ export function StoreProvider({ children }) {
         customer: {
           fullName: o.customer_name,
           phone: o.customer_phone,
+          society: o.customer_society,
           address: o.customer_address,
         },
         items: itemsByOrder[o.id] || [],
@@ -1316,6 +1338,120 @@ export function StoreProvider({ children }) {
     [productCategories, products],
   );
 
+  // ---- Society CRUD (Supabase) ----
+  const addSociety = useCallback(
+    async (name) => {
+      const trimmed = name.trim();
+      if (!trimmed) return { error: "Society name cannot be empty" };
+      const duplicate = societies.some(
+        (s) => s.name.toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (duplicate) return { error: "Society already exists" };
+
+      const tempId = crypto.randomUUID();
+      const tempSociety = {
+        id: tempId,
+        name: trimmed,
+        createdAt: new Date().toISOString(),
+      };
+      setSocieties((prev) =>
+        [...prev, tempSociety].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+
+      const { data, error } = await supabase
+        .from("societies")
+        .insert({ name: trimmed })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Supabase insert society failed:", error);
+        setSocieties((prev) => prev.filter((s) => s.id !== tempId));
+        return { error: error.message || "Failed to save society" };
+      }
+
+      if (!data) {
+        console.error("Insert society returned no row (likely RLS)");
+        setSocieties((prev) => prev.filter((s) => s.id !== tempId));
+        return {
+          error:
+            "The database rejected this society. Check its RLS policy for your role.",
+        };
+      }
+
+      const dbSociety = {
+        id: data.id,
+        name: data.name,
+        createdAt: data.created_at,
+      };
+      setSocieties((prev) =>
+        prev.map((s) => (s.id === tempId ? dbSociety : s)),
+      );
+      return { society: dbSociety };
+    },
+    [societies],
+  );
+
+  const editSociety = useCallback(
+    async (id, newName) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return { error: "Society name cannot be empty" };
+      const duplicate = societies.some(
+        (s) => s.id !== id && s.name.toLowerCase() === trimmed.toLowerCase(),
+      );
+      if (duplicate) return { error: "Society already exists" };
+
+      const oldName = societies.find((s) => s.id === id)?.name;
+      if (!oldName) return { error: "Society not found" };
+
+      setSocieties((prev) =>
+        prev
+          .map((s) => (s.id === id ? { ...s, name: trimmed } : s))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+
+      const { error } = await supabase
+        .from("societies")
+        .update({ name: trimmed })
+        .eq("id", id);
+
+      if (error) {
+        console.error("Supabase update society failed:", error);
+        setSocieties((prev) =>
+          prev
+            .map((s) => (s.id === id ? { ...s, name: oldName } : s))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        );
+        return { error: error.message };
+      }
+
+      return {};
+    },
+    [societies],
+  );
+
+  const deleteSociety = useCallback(
+    async (id) => {
+      const society = societies.find((s) => s.id === id);
+      if (!society) return {};
+
+      setSocieties((prev) => prev.filter((s) => s.id !== id));
+
+      const { error } = await supabase.from("societies").delete().eq("id", id);
+
+      if (error) {
+        console.error("Supabase delete society failed:", error);
+        setSocieties((prev) =>
+          [...prev, society].sort((a, b) => a.name.localeCompare(b.name)),
+        );
+        return { error: error.message };
+      }
+
+      return {};
+    },
+    [societies],
+  );
+
   // ---- Derived values ----
   const cartCount = useMemo(
     () => cart.reduce((sum, item) => sum + item.quantity, 0),
@@ -1381,6 +1517,10 @@ export function StoreProvider({ children }) {
       addProductCategory,
       editProductCategory,
       deleteProductCategory,
+      societies,
+      addSociety,
+      editSociety,
+      deleteSociety,
       toast,
       setToast,
     }),
@@ -1427,6 +1567,10 @@ export function StoreProvider({ children }) {
       addProductCategory,
       editProductCategory,
       deleteProductCategory,
+      societies,
+      addSociety,
+      editSociety,
+      deleteSociety,
     ],
   );
 
