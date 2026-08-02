@@ -1,4 +1,4 @@
-import ChatPage from './ChatPage'
+import ChatPage from "./ChatPage";
 
 export default function SupportChatPage() {
   return (
@@ -8,5 +8,5 @@ export default function SupportChatPage() {
       placeholder="Type your message..."
       emptyText="Start a conversation with Hashmi Network Support."
     />
-  )
+  );
 }

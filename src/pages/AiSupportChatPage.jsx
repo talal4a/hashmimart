@@ -1,44 +1,45 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import useVoiceRecorder from '../hooks/useVoiceRecorder'
-import { uploadSupportVoice, sendSupportMessage } from '../lib/supportChat'
-import { IconMic } from '../components/Icons'
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import useVoiceRecorder from "../hooks/useVoiceRecorder";
+import { uploadSupportVoice, sendSupportMessage } from "../lib/supportChat";
+import { IconMic } from "../components/Icons";
 
 // Urdu, Arabic and Persian ranges — used to switch a bubble to RTL so Urdu
 // script renders correctly. Roman Urdu stays LTR, which is what we want.
 // Written as escapes: the literal characters include an Arabic space that
 // trips ESLint's no-irregular-whitespace.
-const RTL_PATTERN = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+const RTL_PATTERN =
+  /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
 
 function isRtl(text) {
-  return RTL_PATTERN.test(text || '')
+  return RTL_PATTERN.test(text || "");
 }
 
 const GREETING =
-  'Assalam-o-Alaikum! Hashmi Mart support here. Aap apna sawal likh sakte hain ya voice note bhej sakte hain — Urdu, Roman Urdu ya English, jo bhi aasan ho.'
+  "Assalam-o-Alaikum! Hashmi Mart support here. Aap apna sawal likh sakte hain ya voice note bhej sakte hain — Urdu, Roman Urdu ya English, jo bhi aasan ho.";
 
-let idCounter = 0
+let idCounter = 0;
 function nextId(prefix) {
-  idCounter += 1
-  return `${prefix}-${idCounter}`
+  idCounter += 1;
+  return `${prefix}-${idCounter}`;
 }
 
 export default function SupportChatPage() {
   const [messages, setMessages] = useState(() => [
     {
-      id: 'bot-greeting',
-      sender: 'bot',
-      type: 'text',
+      id: "bot-greeting",
+      sender: "bot",
+      type: "text",
       content: GREETING,
       time: new Date(),
     },
-  ])
-  const [input, setInput] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState('')
-  const bottomRef = useRef(null)
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+  const bottomRef = useRef(null);
   // Object URLs for local playback of the user's own voice notes. Revoked on
   // unmount so recordings don't leak for the life of the session.
-  const objectUrlsRef = useRef([])
+  const objectUrlsRef = useRef([]);
 
   const {
     state: voiceState,
@@ -49,157 +50,194 @@ export default function SupportChatPage() {
     cancelRecording,
     getBlob,
     formatDuration,
-  } = useVoiceRecorder()
+  } = useVoiceRecorder();
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, sending])
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, sending]);
 
   useEffect(() => {
-    const urls = objectUrlsRef.current
-    return () => urls.forEach((u) => URL.revokeObjectURL(u))
-  }, [])
+    const urls = objectUrlsRef.current;
+    return () => urls.forEach((u) => URL.revokeObjectURL(u));
+  }, []);
 
   // Only real text turns go to the model. Voice bubbles contribute their
   // transcript, which is what the assistant actually "heard".
   const buildHistory = useCallback(
     (list) =>
       list
-        .filter((m) => m.id !== 'bot-greeting')
+        .filter((m) => m.id !== "bot-greeting")
         .map((m) => ({
-          role: m.sender === 'user' ? 'user' : 'assistant',
-          content: m.type === 'voice' ? m.transcript || '' : m.content || '',
+          role: m.sender === "user" ? "user" : "assistant",
+          content: m.type === "voice" ? m.transcript || "" : m.content || "",
         }))
         .filter((m) => m.content),
     [],
-  )
+  );
 
   const ask = useCallback(
     async (payload, optimistic) => {
-      setError('')
-      setSending(true)
-      const history = buildHistory(messages)
-      setMessages((prev) => [...prev, optimistic])
+      setError("");
+      setSending(true);
+      const history = buildHistory(messages);
+      setMessages((prev) => [...prev, optimistic]);
 
       try {
         const { reply, transcript } = await sendSupportMessage({
           ...payload,
           history,
-        })
+        });
 
         setMessages((prev) => {
           const next = transcript
             ? prev.map((m) =>
                 m.id === optimistic.id ? { ...m, transcript } : m,
               )
-            : prev
+            : prev;
           return [
             ...next,
             {
-              id: nextId('bot'),
-              sender: 'bot',
-              type: 'text',
+              id: nextId("bot"),
+              sender: "bot",
+              type: "text",
               content: reply,
               time: new Date(),
             },
-          ]
-        })
+          ];
+        });
       } catch (err) {
-        setError(err.message || 'Could not reach support. Please try again.')
+        setError(err.message || "Could not reach support. Please try again.");
         // Mark the sent bubble as failed rather than silently dropping it.
         setMessages((prev) =>
           prev.map((m) =>
             m.id === optimistic.id ? { ...m, failed: true } : m,
           ),
-        )
+        );
       } finally {
-        setSending(false)
+        setSending(false);
       }
     },
     [messages, buildHistory],
-  )
+  );
 
   const handleSubmit = (e) => {
-    e.preventDefault()
-    const trimmed = input.trim()
-    if (!trimmed || sending) return
-    setInput('')
+    e.preventDefault();
+    const trimmed = input.trim();
+    if (!trimmed || sending) return;
+    setInput("");
     ask(
       { message: trimmed },
       {
-        id: nextId('user'),
-        sender: 'user',
-        type: 'text',
+        id: nextId("user"),
+        sender: "user",
+        type: "text",
         content: trimmed,
         time: new Date(),
       },
-    )
-  }
+    );
+  };
 
   const handleStopVoice = async () => {
-    stopRecording()
+    stopRecording();
     // MediaRecorder flushes its last chunk asynchronously; give it a tick so
     // getBlob() doesn't miss the tail of the recording.
-    await new Promise((r) => setTimeout(r, 250))
-    const blob = getBlob()
-    cancelRecording()
+    await new Promise((r) => setTimeout(r, 250));
+    const blob = getBlob();
+    cancelRecording();
     if (!blob || blob.size === 0) {
-      setError('Nothing was recorded. Please try again.')
-      return
+      setError("Nothing was recorded. Please try again.");
+      return;
     }
 
-    const url = URL.createObjectURL(blob)
-    objectUrlsRef.current.push(url)
+    const url = URL.createObjectURL(blob);
+    objectUrlsRef.current.push(url);
     const optimistic = {
-      id: nextId('user'),
-      sender: 'user',
-      type: 'voice',
+      id: nextId("user"),
+      sender: "user",
+      type: "voice",
       audioUrl: url,
-      transcript: '',
+      transcript: "",
       time: new Date(),
-    }
+    };
 
-    setError('')
-    setSending(true)
-    setMessages((prev) => [...prev, optimistic])
-    const history = buildHistory(messages)
+    setError("");
+    setSending(true);
+    setMessages((prev) => [...prev, optimistic]);
+    const history = buildHistory(messages);
 
     try {
-      const audioPath = await uploadSupportVoice(blob)
+      const audioPath = await uploadSupportVoice(blob);
       const { reply, transcript } = await sendSupportMessage({
         audioPath,
         history,
-      })
+      });
       setMessages((prev) => [
-        ...prev.map((m) =>
-          m.id === optimistic.id ? { ...m, transcript } : m,
-        ),
+        ...prev.map((m) => (m.id === optimistic.id ? { ...m, transcript } : m)),
         {
-          id: nextId('bot'),
-          sender: 'bot',
-          type: 'text',
+          id: nextId("bot"),
+          sender: "bot",
+          type: "text",
           content: reply,
           time: new Date(),
         },
-      ])
+      ]);
     } catch (err) {
-      setError(err.message || 'Could not send the voice note. Please try again.')
+      setError(
+        err.message || "Could not send the voice note. Please try again.",
+      );
       setMessages((prev) =>
         prev.map((m) => (m.id === optimistic.id ? { ...m, failed: true } : m)),
-      )
+      );
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }
+  };
 
-  const recording = voiceState === 'recording'
-  const canSend = useMemo(() => input.trim() && !sending, [input, sending])
+  const recording = voiceState === "recording";
+  const canSend = useMemo(() => input.trim() && !sending, [input, sending]);
+
+  const handleWhatsAppClick = (e) => {
+    e.preventDefault();
+
+    const phone = "923104198984";
+
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      window.location.href = `https://wa.me/${phone}`;
+    } else {
+      const desktopAppUrl = `whatsapp://send?phone=${phone}`;
+      const webUrl = `https://web.whatsapp.com/send?phone=${phone}`;
+
+      window.location.href = desktopAppUrl;
+
+      const timer = setTimeout(() => {
+        window.open(webUrl, "_blank");
+      }, 1200);
+
+      window.addEventListener("blur", () => clearTimeout(timer), {
+        once: true,
+      });
+    }
+  };
 
   return (
     <div className="support-chat-page">
       <div className="chat-topbar">
         <div className="chat-topbar-info">
           <h2>Hashmi Support</h2>
+          <div className="support-header-contact">
+            <a
+              href="#"
+              onClick={handleWhatsAppClick}
+              className="support-header-phone"
+            >
+              03104198984
+            </a>
+            <span className="support-header-whatsapp-text">
+              (Contact Admin directly through WhatsApp)
+            </span>
+          </div>
           <span className="chat-timestamp">
             AI assistant · Urdu, Roman Urdu &amp; English
           </span>
@@ -215,21 +253,25 @@ export default function SupportChatPage() {
           <div
             key={msg.id}
             className={`chat-bubble ${
-              msg.sender === 'user' ? 'chat-bubble--own' : 'chat-bubble--other'
+              msg.sender === "user" ? "chat-bubble--own" : "chat-bubble--other"
             }`}
           >
-            {msg.type === 'voice' ? (
+            {msg.type === "voice" ? (
               <>
                 <audio
                   controls
                   src={msg.audioUrl}
-                  style={{ width: '200px', height: '40px' }}
+                  style={{ width: "200px", height: "40px" }}
                 />
                 {msg.transcript && (
                   <div
                     className="chat-bubble-text"
-                    dir={isRtl(msg.transcript) ? 'rtl' : 'ltr'}
-                    style={{ marginTop: '0.4rem', fontStyle: 'italic', opacity: 0.85 }}
+                    dir={isRtl(msg.transcript) ? "rtl" : "ltr"}
+                    style={{
+                      marginTop: "0.4rem",
+                      fontStyle: "italic",
+                      opacity: 0.85,
+                    }}
                   >
                     {msg.transcript}
                   </div>
@@ -238,21 +280,21 @@ export default function SupportChatPage() {
             ) : (
               <div
                 className="chat-bubble-text"
-                dir={isRtl(msg.content) ? 'rtl' : 'ltr'}
-                style={{ whiteSpace: 'pre-wrap' }}
+                dir={isRtl(msg.content) ? "rtl" : "ltr"}
+                style={{ whiteSpace: "pre-wrap" }}
               >
                 {msg.content}
               </div>
             )}
             <div className="chat-bubble-meta">
               <span className="chat-bubble-time">
-                {msg.time.toLocaleTimeString('en-PK', {
-                  hour: '2-digit',
-                  minute: '2-digit',
+                {msg.time.toLocaleTimeString("en-PK", {
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
               </span>
               {msg.failed && (
-                <span style={{ color: '#ef4444', marginLeft: '0.4rem' }}>
+                <span style={{ color: "#ef4444", marginLeft: "0.4rem" }}>
                   Not delivered
                 </span>
               )}
@@ -274,7 +316,7 @@ export default function SupportChatPage() {
       {(error || voiceError) && (
         <div
           className="field-error"
-          style={{ padding: '0.5rem 1rem', textAlign: 'center' }}
+          style={{ padding: "0.5rem 1rem", textAlign: "center" }}
         >
           {error || voiceError}
         </div>
@@ -293,7 +335,13 @@ export default function SupportChatPage() {
               onClick={handleStopVoice}
               aria-label="Send recording"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
                 <rect x="6" y="6" width="12" height="12" rx="2" />
               </svg>
             </button>
@@ -303,7 +351,17 @@ export default function SupportChatPage() {
               onClick={cancelRecording}
               aria-label="Cancel recording"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -333,7 +391,11 @@ export default function SupportChatPage() {
               <IconMic size={20} />
             </button>
             {input.trim() && (
-              <button type="submit" className="chat-send-btn" disabled={!canSend}>
+              <button
+                type="submit"
+                className="chat-send-btn"
+                disabled={!canSend}
+              >
                 Send
               </button>
             )}
@@ -341,5 +403,5 @@ export default function SupportChatPage() {
         )}
       </div>
     </div>
-  )
+  );
 }
