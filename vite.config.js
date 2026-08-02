@@ -21,7 +21,7 @@ export default defineConfig({
       manifest: {
         id: "/",
         name: "Hashmi Mart", // Updated to match brand mark
-        short_name: "Hai Mart",
+        short_name: "Hashmi Mart",
         description: "Premium fresh groceries delivered fast in Lahore",
         theme_color: "#ffffff",
         background_color: "#ffffff",
