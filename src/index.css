@@ -157,9 +157,7 @@ select {
   flex-direction: column;
   max-width: var(--max-w);
   margin: 0 auto;
-  padding-bottom: calc(
-    var(--bottom-nav-h) + max(12px, env(safe-area-inset-bottom, 0px))
-  );
+  padding-bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
 }
 
 .main-content {
@@ -190,7 +188,6 @@ select {
   min-height: 56px;
   height: auto;
   padding: 0.75rem 1rem;
-  padding-top: max(12px, env(safe-area-inset-top));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow);
@@ -4716,7 +4713,7 @@ select {
   bottom: 0;
   left: 0;
   right: 0;
-  height: calc(70px + max(12px, env(safe-area-inset-bottom, 0px)));
+  height: calc(70px + env(safe-area-inset-bottom, 0px));
   background: var(--surface);
   border-top: 1px solid var(--border);
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
@@ -4724,7 +4721,7 @@ select {
   justify-content: space-around;
   align-items: center;
   z-index: 1000;
-  padding: 8px 0 max(12px, env(safe-area-inset-bottom, 0px));
+  padding: 8px 0 calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-nav-item {
@@ -7556,8 +7553,8 @@ div {
 /* ── BOTTOM NAV ── */
 
 .bottom-nav {
-  padding-bottom: max(12px, var(--safe-bottom));
-  height: calc(var(--bottom-nav-h) + max(12px, var(--safe-bottom)));
+  padding-bottom: var(--safe-bottom);
+  height: calc(var(--bottom-nav-h) + var(--safe-bottom));
 }
 
 /* ── PRODUCT GRID ── */
