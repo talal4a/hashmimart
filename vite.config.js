@@ -20,7 +20,7 @@ export default defineConfig({
       includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png"],
       manifest: {
         id: "/",
-        name: "Hashmi Mart", // Updated to match brand mark
+        name: "Hashmi Mart",
         short_name: "Hashmi Mart",
         description: "Premium fresh groceries delivered fast in Lahore",
         theme_color: "#ffffff",
