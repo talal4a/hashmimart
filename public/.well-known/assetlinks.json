@@ -1,12 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "REPLACE_WITH_ANDROID_PACKAGE_NAME",
-      "sha256_cert_fingerprints": [
-        "REPLACE_WITH_PLAY_SIGNING_SHA256_FINGERPRINT"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.vercel.hashmimart.twa",
+        "sha256_cert_fingerprints": ["C0:B4:64:15:9E:A2:2C:8F:05:3C:AA:C0:06:76:05:07:3E:BE:7B:B3:C9:FA:78:0F:89:EC:09:2A:D3:9C:30:66"]
+      }
+    }]
