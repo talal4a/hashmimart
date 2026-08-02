@@ -162,7 +162,7 @@ export default function CategoriesPage() {
         <AnimateOnScroll>
           <div className="orders-section">
             <div className="orders-section-header">
-              <h2>Your Orders ({orders.length})</h2>
+              <h2>Your Orders</h2>
               <div className="admin-filters">
                 <button
                   className={`filter-btn ${orderFilter === "all" ? "filter-btn-active" : ""}`}
