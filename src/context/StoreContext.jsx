@@ -767,12 +767,18 @@ export function StoreProvider({ children }) {
 
       console.log(`Order ${orderId} status updated to ${newStatus}`);
 
-      // 5. Create notification for delivered/cancelled orders
-      if (newStatus === "delivered" || newStatus === "cancelled") {
-        const message =
-          newStatus === "delivered"
-            ? `Your order #${orderRow.display_id} has been delivered.`
-            : `Your order #${orderRow.display_id} was cancelled.`;
+      // 5. Create notification for confirmed/delivered/cancelled orders
+      if (
+        newStatus === "confirmed" ||
+        newStatus === "delivered" ||
+        newStatus === "cancelled"
+      ) {
+        let message = `Your order #${orderRow.display_id} was cancelled.`;
+        if (newStatus === "confirmed") {
+          message = `Your order #${orderRow.display_id} has been confirmed.`;
+        } else if (newStatus === "delivered") {
+          message = `Your order #${orderRow.display_id} has been delivered.`;
+        }
 
         const { data: notifRow, error: notifErr } = await supabase
           .from("notifications")
@@ -810,16 +816,20 @@ export function StoreProvider({ children }) {
           );
         }
 
+        let staffMessage = `Order #${orderRow.display_id} was cancelled.`;
+        if (newStatus === "confirmed") {
+          staffMessage = `Order #${orderRow.display_id} was confirmed.`;
+        } else if (newStatus === "delivered") {
+          staffMessage = `Order #${orderRow.display_id} was delivered.`;
+        }
+
         // Staff copy, so the team has a record of the outcome too.
         const { error: staffErr } = await supabase
           .from("notifications")
           .insert({
             order_id: orderRow.id,
             audience: "staff",
-            message:
-              newStatus === "delivered"
-                ? `Order #${orderRow.display_id} was delivered.`
-                : `Order #${orderRow.display_id} was cancelled.`,
+            message: staffMessage,
             is_read: false,
           });
         if (staffErr) {
