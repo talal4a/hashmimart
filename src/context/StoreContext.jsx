@@ -755,7 +755,7 @@ export function StoreProvider({ children }) {
       // 4. Update local state so UI updates instantly
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
-          String(order.display_id) === String(orderId)
+          String(order.id) === String(orderId)
             ? {
                 ...order,
                 status: newStatus,

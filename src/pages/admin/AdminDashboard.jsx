@@ -1605,7 +1605,7 @@ export default function AdminDashboard() {
 
           {/* ── Order Filters ── */}
           <div className="admin-order-filters">
-            {["all", "pending", "delivered", "cancelled"].map((f) => (
+            {["all", "pending", "confirmed", "delivered", "cancelled"].map((f) => (
               <button
                 key={f}
                 type="button"
@@ -1670,7 +1670,10 @@ export default function AdminDashboard() {
                   <OrderCard
                     key={order.id}
                     order={order}
-                    onUpdateStatus={updateOrderStatus}
+                    onUpdateStatus={async (id, status) => {
+                      await updateOrderStatus(id, status);
+                      setRecentOrders(prev => prev.map(o => String(o.id) === String(id) ? { ...o, status } : o));
+                    }}
                     selected={selectedIds.has(order.dbId)}
                     onToggleSelect={toggleSelect}
                   />
