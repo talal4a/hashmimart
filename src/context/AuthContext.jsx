@@ -76,12 +76,52 @@ export function AuthProvider({ children }) {
       throw new Error("Please confirm your email address before logging in.");
     }
 
+    // Sync anonymous wishlist items to user account on login
+    try {
+      const sessionId = localStorage.getItem("session_id");
+      if (sessionId && data.user) {
+        const { data: wishlistItems } = await supabase
+          .from("wishlist_items")
+          .select("product_id")
+          .eq("session_id", sessionId);
+
+        if (wishlistItems && wishlistItems.length > 0) {
+          // Migrate session wishlist to user wishlist
+          for (const item of wishlistItems) {
+            await supabase.from("wishlist_items").upsert({
+              user_id: data.user.id,
+              product_id: item.product_id,
+              session_id: null,
+            });
+          }
+          // Clear session wishlist after migration
+          await supabase
+            .from("wishlist_items")
+            .delete()
+            .eq("session_id", sessionId);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to sync wishlist on login:", e);
+    }
+
     return data;
   }, []);
 
   const logOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+
+    // Clear localStorage data on logout to prevent data leakage
+    try {
+      localStorage.removeItem("hashmi-wishlist");
+      localStorage.removeItem("hashmi-network-store");
+      localStorage.removeItem("cart");
+      localStorage.removeItem("products");
+      localStorage.removeItem("session_id");
+    } catch (e) {
+      console.warn("Failed to clear localStorage on logout:", e);
+    }
   }, []);
 
   const resetPassword = useCallback(async (email) => {

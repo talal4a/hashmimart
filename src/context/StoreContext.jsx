@@ -392,8 +392,8 @@ export function StoreProvider({ children }) {
             id: n.id,
             orderId: n.orders?.display_id,
             message: n.message,
-            read: n.is_read,
-            createdAt: n.created_at,
+            is_read: n.is_read,
+            created_at: n.created_at,
           })),
         );
       } finally {
@@ -725,81 +725,114 @@ export function StoreProvider({ children }) {
   );
 
   const updateOrderStatus = useCallback(async (orderId, newStatus) => {
-    if (!["pending", "delivered", "cancelled"].includes(newStatus)) {
-      throw new Error(`Invalid status: ${newStatus}`);
-    }
+    try {
+      // 1. Ensure we have a valid ID passed in
+      if (!orderId) {
+        throw new Error("Order ID is missing or undefined");
+      }
 
-    const { data: orderRow } = await supabase
-      .from("orders")
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq("display_id", orderId)
-      .select()
-      .single();
+      if (!["pending", "delivered", "cancelled"].includes(newStatus)) {
+        throw new Error(`Invalid status: ${newStatus}`);
+      }
 
-    if (!orderRow) {
-      console.error("updateOrderStatus: order not found");
-      throw new Error("Order not found");
-    }
-
-    if (newStatus === "delivered" || newStatus === "cancelled") {
-      const message =
-        newStatus === "delivered"
-          ? `Your order #${orderRow.display_id} has been delivered.`
-          : `Your order #${orderRow.display_id} was cancelled.`;
-
-      const { data: notifRow, error: notifErr } = await supabase
-        .from("notifications")
-        .insert({
-          order_id: orderRow.id,
-          audience: "customer",
-          message,
-          is_read: false,
-        })
-        .select("*, orders(display_id)")
+      // 2. Update directly in Supabase using display_id (since that's what the UI uses)
+      const { data: orderRow, error } = await supabase
+        .from("orders")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("display_id", orderId)
+        .select()
         .single();
 
-      // A failed notification must not roll back a successful status change.
-      if (notifErr) {
-        console.error(
-          "updateOrderStatus: notification insert failed",
-          notifErr,
-        );
-      } else if (notifRow) {
-        setNotifications((prev) =>
-          // Realtime may have delivered this already on the staff session.
-          prev.some((n) => n.id === notifRow.id)
-            ? prev
-            : [
-                {
-                  id: notifRow.id,
-                  orderId: notifRow.orders?.display_id,
-                  message: notifRow.message,
-                  read: notifRow.is_read,
-                  createdAt: notifRow.created_at,
-                },
-                ...prev,
-              ],
+      if (error) throw error;
+
+      // 3. If Supabase returns no updated rows, check RLS or ID
+      if (!orderRow) {
+        throw new Error(
+          `Order with display_id ${orderId} was not found in database or permission denied.`,
         );
       }
 
-      // Staff copy, so the team has a record of the outcome too.
-      const { error: staffErr } = await supabase.from("notifications").insert({
-        order_id: orderRow.id,
-        audience: "staff",
-        message:
+      // 4. Update local state so UI updates instantly
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          String(order.display_id) === String(orderId)
+            ? {
+                ...order,
+                status: newStatus,
+                updated_at: new Date().toISOString(),
+              }
+            : order,
+        ),
+      );
+
+      console.log(`Order ${orderId} status updated to ${newStatus}`);
+
+      // 5. Create notification for delivered/cancelled orders
+      if (newStatus === "delivered" || newStatus === "cancelled") {
+        const message =
           newStatus === "delivered"
-            ? `Order #${orderRow.display_id} was delivered.`
-            : `Order #${orderRow.display_id} was cancelled.`,
-        is_read: false,
-      });
-      if (staffErr) {
-        console.error("updateOrderStatus: staff notification failed", staffErr);
-      }
-    }
+            ? `Your order #${orderRow.display_id} has been delivered.`
+            : `Your order #${orderRow.display_id} was cancelled.`;
 
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)),
-    );
+        const { data: notifRow, error: notifErr } = await supabase
+          .from("notifications")
+          .insert({
+            user_id: orderRow.user_id,
+            order_id: orderRow.id,
+            audience: "customer",
+            message,
+            is_read: false,
+          })
+          .select("*, orders(display_id)")
+          .single();
+
+        // A failed notification must not roll back a successful status change.
+        if (notifErr) {
+          console.error(
+            "updateOrderStatus: notification insert failed",
+            notifErr,
+          );
+        } else if (notifRow) {
+          setNotifications((prev) =>
+            // Realtime may have delivered this already on the staff session.
+            prev.some((n) => n.id === notifRow.id)
+              ? prev
+              : [
+                  {
+                    id: notifRow.id,
+                    orderId: notifRow.orders?.display_id,
+                    message: notifRow.message,
+                    is_read: notifRow.is_read,
+                    created_at: notifRow.created_at,
+                  },
+                  ...prev,
+                ],
+          );
+        }
+
+        // Staff copy, so the team has a record of the outcome too.
+        const { error: staffErr } = await supabase
+          .from("notifications")
+          .insert({
+            order_id: orderRow.id,
+            audience: "staff",
+            message:
+              newStatus === "delivered"
+                ? `Order #${orderRow.display_id} was delivered.`
+                : `Order #${orderRow.display_id} was cancelled.`,
+            is_read: false,
+          });
+        if (staffErr) {
+          console.error(
+            "updateOrderStatus: staff notification failed",
+            staffErr,
+          );
+        }
+      }
+    } catch (err) {
+      console.error("updateOrderStatus Error:", err.message);
+      throw err;
+    }
   }, []);
 
   const deleteOrders = useCallback(
@@ -859,13 +892,13 @@ export function StoreProvider({ children }) {
     }
 
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+      prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)),
     );
     return {};
   }, []);
 
   const markAllNotificationsRead = useCallback(async () => {
-    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    const unreadIds = notifications.filter((n) => !n.is_read).map((n) => n.id);
     if (unreadIds.length === 0) return {};
 
     const { error } = await supabase
@@ -878,7 +911,7 @@ export function StoreProvider({ children }) {
       return { error: error.message };
     }
 
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
     return { count: unreadIds.length };
   }, [notifications]);
 
@@ -1469,7 +1502,7 @@ export function StoreProvider({ children }) {
   );
 
   const unreadNotifications = useMemo(
-    () => notifications.filter((n) => !n.read),
+    () => notifications.filter((n) => !n.is_read),
     [notifications],
   );
 

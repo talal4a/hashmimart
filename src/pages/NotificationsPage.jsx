@@ -29,13 +29,15 @@ export default function NotificationsPage() {
   const [error, setError] = useState("");
 
   const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
+    () => notifications.filter((n) => !n.is_read).length,
     [notifications],
   );
 
   const visible = useMemo(
     () =>
-      filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
+      filter === "unread"
+        ? notifications.filter((n) => !n.is_read)
+        : notifications,
     [notifications, filter],
   );
 
@@ -140,7 +142,9 @@ export default function NotificationsPage() {
             <IconBell size={32} />
           </span>
           <h2 className="notif-empty__title">
-            {filter === "unread" ? "You're all caught up" : "No notifications yet"}
+            {filter === "unread"
+              ? "You're all caught up"
+              : "No notifications yet"}
           </h2>
           <p className="notif-empty__text">
             {filter === "unread"
@@ -166,7 +170,7 @@ export default function NotificationsPage() {
           {visible.map((notif) => (
             <li
               key={notif.id}
-              className={`notif-card ${notif.read ? "" : "notif-card--unread"} ${
+              className={`notif-card ${notif.is_read ? "" : "notif-card--unread"} ${
                 deletingId === notif.id ? "notif-card--deleting" : ""
               }`}
             >
@@ -175,9 +179,11 @@ export default function NotificationsPage() {
               <button
                 type="button"
                 className="notif-card__main"
-                onClick={() => !notif.read && markNotificationRead(notif.id)}
+                onClick={() => !notif.is_read && markNotificationRead(notif.id)}
                 aria-label={
-                  notif.read ? notif.message : `Mark as read: ${notif.message}`
+                  notif.is_read
+                    ? notif.message
+                    : `Mark as read: ${notif.message}`
                 }
               >
                 <span className="notif-card__icon" aria-hidden="true">
@@ -201,7 +207,7 @@ export default function NotificationsPage() {
                     )}
                   </span>
                 </span>
-                {!notif.read && (
+                {!notif.is_read && (
                   <span className="notif-card__dot" aria-label="Unread" />
                 )}
               </button>
@@ -211,7 +217,9 @@ export default function NotificationsPage() {
                   <Link
                     to={`/order/${notif.orderId}`}
                     className="notif-card__link"
-                    onClick={() => !notif.read && markNotificationRead(notif.id)}
+                    onClick={() =>
+                      !notif.is_read && markNotificationRead(notif.id)
+                    }
                   >
                     View order
                   </Link>
