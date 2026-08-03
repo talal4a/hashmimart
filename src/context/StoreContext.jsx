@@ -677,6 +677,11 @@ export function StoreProvider({ children }) {
         if (itemsError) {
           console.error("placeOrder: failed to save order items", itemsError);
           await supabase.from("orders").delete().eq("id", orderRow.id);
+          
+          if (itemsError.message.includes("foreign key constraint")) {
+            throw new Error("One or more items in your cart are no longer available in the store. Please clear your cart and add items again.");
+          }
+          
           throw new Error(itemsError.message);
         }
       }
