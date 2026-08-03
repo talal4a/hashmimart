@@ -200,13 +200,6 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
     order.status === "delivered" || order.status === "cancelled";
   const canDelete = isTerminal && order.dbId;
 
-  const statusIcon =
-    {
-      pending: "⏳",
-      confirmed: "👍",
-      delivered: "✅",
-      cancelled: "❌",
-    }[order.status] || "📦";
 
   const handleUpdate = async (newStatus) => {
     setIsUpdating(true);

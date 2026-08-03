@@ -16,14 +16,38 @@ export default function CheckoutPage() {
   } = useStore();
   const { profile, user } = useAuth();
 
-  // Initialize form with user data
-  const [form, setForm] = useState(() => ({
-    fullName: profile?.full_name || user?.user_metadata?.full_name || "",
-    phone: profile?.phone || user?.user_metadata?.phone || "",
-    email: user?.email || "",
-    society: "",
-    address: voiceOrderAddress || "",
-  }));
+  const [savedAddresses, setSavedAddresses] = useState(() => {
+    try {
+      const stored = localStorage.getItem("hashmi_saved_addresses");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (err) {
+      console.error("Failed to parse saved addresses", err);
+    }
+    return [];
+  });
+  const [showAddressPreview, setShowAddressPreview] = useState(false);
+
+  const [form, setForm] = useState(() => {
+    let saved = [];
+    try {
+      const stored = localStorage.getItem("hashmi_saved_addresses");
+      if (stored) {
+        saved = JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error("Failed to parse saved addresses", e);
+    }
+
+    return {
+      fullName: profile?.full_name || user?.user_metadata?.full_name || "",
+      phone: profile?.phone || user?.user_metadata?.phone || "",
+      email: user?.email || "",
+      society: saved.length > 0 ? saved[0].society : "",
+      address: voiceOrderAddress || (saved.length > 0 ? saved[0].address : ""),
+    };
+  });
 
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
   const [errors, setErrors] = useState({});
@@ -61,6 +85,17 @@ export default function CheckoutPage() {
     setSubmitting(true);
     try {
       const isVoiceOrder = !!voiceOrderAudio;
+
+      // Save address locally for future checkouts
+      const newSaved = { society: form.society || "", address: form.address.trim() };
+      let updatedAddresses = savedAddresses.filter(
+        (a) => a.address !== newSaved.address || a.society !== newSaved.society
+      );
+      updatedAddresses.unshift(newSaved);
+      if (updatedAddresses.length > 5) updatedAddresses = updatedAddresses.slice(0, 5);
+      localStorage.setItem("hashmi_saved_addresses", JSON.stringify(updatedAddresses));
+      setSavedAddresses(updatedAddresses);
+
       const order = await placeOrder(
         {
           fullName: form.fullName.trim(),
@@ -260,7 +295,7 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            <div className="add-item-field">
+            <div className="add-item-field" style={{ position: "relative" }}>
               <label className="add-item-label">Delivery Address</label>
               <textarea
                 id="address"
@@ -268,8 +303,90 @@ export default function CheckoutPage() {
                 rows={3}
                 placeholder="House No, Street, Block, Area, Landmark"
                 value={form.address}
+                onFocus={() => setShowAddressPreview(true)}
+                onBlur={() => setTimeout(() => setShowAddressPreview(false), 200)}
                 onChange={update("address")}
               />
+              
+              {/* Address Preview Dropdown */}
+              {showAddressPreview && savedAddresses.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "100%",
+                    left: 0,
+                    right: 0,
+                    background: "white",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "8px",
+                    boxShadow: "0 4px 6px -1px rgba(0,0,0,0.1)",
+                    zIndex: 10,
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                    marginTop: "4px",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: "0.5rem 0.75rem",
+                      background: "#f8fafc",
+                      borderBottom: "1px solid #e2e8f0",
+                      fontSize: "0.8rem",
+                      fontWeight: "bold",
+                      color: "#64748b",
+                    }}
+                  >
+                    Recently Used Addresses
+                  </div>
+                  {savedAddresses.map((addr, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "0.75rem",
+                        cursor: "pointer",
+                        borderBottom: "1px solid #f1f5f9",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseDown={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          address: addr.address,
+                          society: addr.society || prev.society,
+                        }));
+                        setShowAddressPreview(false);
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.backgroundColor = "#f1f5f9")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.backgroundColor = "transparent")
+                      }
+                    >
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          fontWeight: "500",
+                          color: "#334155",
+                        }}
+                      >
+                        {addr.address}
+                      </div>
+                      {addr.society && (
+                        <div
+                          style={{
+                            fontSize: "0.75rem",
+                            color: "#64748b",
+                            marginTop: "0.2rem",
+                          }}
+                        >
+                          Society: {addr.society}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {errors.address && (
                 <span
                   className="add-item-error-text"
