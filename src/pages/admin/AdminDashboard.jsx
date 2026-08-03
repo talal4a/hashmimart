@@ -13,7 +13,6 @@ import { Edit, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
 import AccessDenied from "./AccessDenied";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import AddItemPage from "./AddItemPage";
-
 function SparklineCard({ icon, color, title, value, data }) {
   const width = 100;
   const height = 40;
