@@ -70,6 +70,12 @@ export function AuthProvider({ children }) {
       password,
     });
     if (error) throw error;
+
+    // Check if email is verified
+    if (data.user && !data.user.email_confirmed_at) {
+      throw new Error("Please confirm your email address before logging in.");
+    }
+
     return data;
   }, []);
 

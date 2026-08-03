@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS orders (
   payment_method            TEXT NOT NULL DEFAULT 'Cash on Delivery',
   estimated_delivery_minutes INTEGER,
   is_voice_order            BOOLEAN DEFAULT false,
+  hidden_by_admin           BOOLEAN DEFAULT false,
   created_at                TIMESTAMPTZ DEFAULT now(),
   updated_at                TIMESTAMPTZ DEFAULT now()
 );
@@ -116,6 +117,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   order_id    UUID REFERENCES orders(id) ON DELETE CASCADE,
+  audience    TEXT NOT NULL DEFAULT 'customer'
+              CHECK (audience IN ('customer', 'staff')),
   message     TEXT NOT NULL,
   is_read     BOOLEAN DEFAULT false,
   created_at  TIMESTAMPTZ DEFAULT now()
@@ -283,6 +286,22 @@ CREATE POLICY "orders_update_staff" ON orders
     )
   );
 
+DROP POLICY IF EXISTS "orders_update_hidden" ON orders;
+CREATE POLICY "orders_update_hidden" ON orders
+  FOR UPDATE TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
+    )
+  );
+
 -- ── Order Items Policies ─────────────────────────────────────
 
 DROP POLICY IF EXISTS "order_items_select_anon" ON order_items;
@@ -315,11 +334,33 @@ CREATE POLICY "wishlist_items_delete_session" ON wishlist_items
 
 DROP POLICY IF EXISTS "notifications_select_user" ON notifications;
 CREATE POLICY "notifications_select_user" ON notifications
-  FOR SELECT TO authenticated USING (user_id = auth.uid());
+  FOR SELECT TO authenticated USING (audience = 'customer' AND (user_id IS NULL OR user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "notifications_select_staff" ON notifications;
+CREATE POLICY "notifications_select_staff" ON notifications
+  FOR SELECT TO authenticated
+  USING (
+    audience = 'staff'
+    AND EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
+    )
+  );
 
 DROP POLICY IF EXISTS "notifications_update_user" ON notifications;
 CREATE POLICY "notifications_update_user" ON notifications
   FOR UPDATE TO authenticated USING (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "notifications_update_staff" ON notifications;
+CREATE POLICY "notifications_update_staff" ON notifications
+  FOR UPDATE TO authenticated
+  USING (
+    audience = 'staff'
+    AND EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
+    )
+  );
 
 DROP POLICY IF EXISTS "notifications_insert_staff" ON notifications;
 CREATE POLICY "notifications_insert_staff" ON notifications
@@ -330,6 +371,10 @@ CREATE POLICY "notifications_insert_staff" ON notifications
       WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
     )
   );
+
+DROP POLICY IF EXISTS "notifications_delete_user" ON notifications;
+CREATE POLICY "notifications_delete_user" ON notifications
+  FOR DELETE TO authenticated USING (user_id = auth.uid() OR audience = 'staff');
 
 -- ── Profiles Policies ──────────────────────────────────────────
 
@@ -482,6 +527,7 @@ CREATE POLICY "messages_delete_user" ON messages
 
 INSERT INTO storage.buckets (id, name, public) VALUES
   ('products', 'Product Images', true),
+  ('voice-notes', 'Voice Notes and Recordings', true),
   ('chat-voice', 'Chat Voice Messages', false)
 ON CONFLICT (id) DO NOTHING;
 
@@ -533,6 +579,22 @@ CREATE POLICY "chat_voice_delete_authenticated" ON storage.objects
     bucket_id = 'chat-voice'
     AND (auth.uid()::text = (storage.foldername(name))[1])
   );
+
+-- Voice notes bucket policies
+DROP POLICY IF EXISTS "voice_notes_select_anon" ON storage.objects;
+CREATE POLICY "voice_notes_select_anon" ON storage.objects
+  FOR SELECT TO anon, authenticated
+  USING (bucket_id = 'voice-notes');
+
+DROP POLICY IF EXISTS "voice_notes_insert_authenticated" ON storage.objects;
+CREATE POLICY "voice_notes_insert_authenticated" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'voice-notes');
+
+DROP POLICY IF EXISTS "voice_notes_delete_authenticated" ON storage.objects;
+CREATE POLICY "voice_notes_delete_authenticated" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'voice-notes');
 
 -- ── Functions ─────────────────────────────────────────────────
 

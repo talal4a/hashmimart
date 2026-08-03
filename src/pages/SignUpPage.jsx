@@ -52,7 +52,22 @@ export default function SignUpPage() {
         setSuccess("Account created! Check your email for confirmation.");
       }
     } catch (err) {
-      setError(err.message);
+      console.error("Signup error:", err);
+      let errorMessage = "An error occurred during signup";
+      
+      if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.error_description) {
+        errorMessage = err.error_description;
+      } else if (err?.error) {
+        errorMessage = err.error;
+      } else if (JSON.stringify(err) !== '{}') {
+        errorMessage = JSON.stringify(err);
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
