@@ -199,8 +199,6 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
   const isTerminal =
     order.status === "delivered" || order.status === "cancelled";
   const canDelete = isTerminal && order.dbId;
-
-
   const handleUpdate = async (newStatus) => {
     setIsUpdating(true);
     try {
@@ -209,7 +207,6 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
       setIsUpdating(false);
     }
   };
-
   return (
     <article className={`admin-order admin-order--${order.status}`}>
       <header className="admin-order__header">

@@ -23,7 +23,33 @@ export default function DirectOrderPage() {
   // step 1: audio recorded, waiting for address
   // step 2: address entered, ready to checkout
   const [step, setStep] = useState(0);
-  const [addressInput, setAddressInput] = useState("");
+  
+  const [addressInput, setAddressInput] = useState(() => {
+    try {
+      const stored = localStorage.getItem("hashmi_saved_addresses");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.length > 0) return parsed[0].address;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    return "";
+  });
+
+  const [savedAddresses] = useState(() => {
+    try {
+      const stored = localStorage.getItem("hashmi_saved_addresses");
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    return [];
+  });
+  
+  const [showAddressPreview, setShowAddressPreview] = useState(false);
 
   const [messages, setMessages] = useState([
     {
@@ -260,7 +286,7 @@ export default function DirectOrderPage() {
         )}
 
         {step === 1 && (
-          <form className="chat-input-wrapper" onSubmit={handleAddressSubmit}>
+          <form className="chat-input-wrapper" style={{ position: "relative" }} onSubmit={handleAddressSubmit}>
             <input
               type="text"
               className="chat-input"
@@ -268,8 +294,87 @@ export default function DirectOrderPage() {
               placeholder="Enter your delivery address..."
               value={addressInput}
               onChange={(e) => setAddressInput(e.target.value)}
+              onFocus={() => setShowAddressPreview(true)}
+              onBlur={() => setTimeout(() => setShowAddressPreview(false), 200)}
               autoFocus
             />
+
+            {/* Address Preview Dropdown */}
+            {showAddressPreview && savedAddresses.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "100%", // Open upwards since it's at the bottom
+                  left: 0,
+                  right: 0,
+                  background: "white",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  boxShadow: "0 -4px 6px -1px rgba(0,0,0,0.1)",
+                  zIndex: 10,
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  marginBottom: "8px",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "0.5rem 0.75rem",
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e2e8f0",
+                    fontSize: "0.8rem",
+                    fontWeight: "bold",
+                    color: "#64748b",
+                  }}
+                >
+                  Recently Used Addresses
+                </div>
+                {savedAddresses.map((addr, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: "0.75rem",
+                      cursor: "pointer",
+                      borderBottom: "1px solid #f1f5f9",
+                      transition: "background-color 0.2s",
+                      textAlign: "left",
+                    }}
+                    onMouseDown={() => {
+                      setAddressInput(addr.address);
+                      setShowAddressPreview(false);
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = "#f1f5f9")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = "transparent")
+                    }
+                  >
+                    <div
+                      style={{
+                        fontSize: "0.85rem",
+                        fontWeight: "500",
+                        color: "#334155",
+                      }}
+                    >
+                      {addr.address}
+                    </div>
+                    {addr.society && (
+                      <div
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "#64748b",
+                          marginTop: "0.2rem",
+                        }}
+                      >
+                        Society: {addr.society}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
               type="submit"
               className="chat-send-btn"
