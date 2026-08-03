@@ -193,7 +193,9 @@ function Toast({ message, type, onClose }) {
 }
 
 function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
+  const [isUpdating, setIsUpdating] = useState(false);
   const isPending = order.status === "pending";
+  const isConfirmed = order.status === "confirmed";
   const isTerminal =
     order.status === "delivered" || order.status === "cancelled";
   const canDelete = isTerminal && order.dbId;
@@ -201,9 +203,19 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
   const statusIcon =
     {
       pending: "⏳",
+      confirmed: "👍",
       delivered: "✅",
       cancelled: "❌",
     }[order.status] || "📦";
+
+  const handleUpdate = async (newStatus) => {
+    setIsUpdating(true);
+    try {
+      await onUpdateStatus(order.id, newStatus);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   return (
     <article className={`admin-order admin-order--${order.status}`}>
@@ -364,16 +376,46 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
               <button
                 type="button"
                 className="admin-order__action-btn admin-order__action-btn--deliver"
-                onClick={() => onUpdateStatus(order.id, "delivered")}
+                onClick={() => handleUpdate("confirmed")}
+                disabled={isUpdating}
               >
-                ✅ Mark Delivered
+                {isUpdating ? (
+                  <svg className="admin-order__spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                ) : (
+                  "Confirm Order"
+                )}
               </button>
               <button
                 type="button"
                 className="admin-order__action-btn admin-order__action-btn--cancel"
-                onClick={() => onUpdateStatus(order.id, "cancelled")}
+                onClick={() => handleUpdate("cancelled")}
+                disabled={isUpdating}
               >
-                ❌ Cancel Order
+                {isUpdating ? "..." : "Cancel Order"}
+              </button>
+            </>
+          )}
+          {isConfirmed && (
+            <>
+              <button
+                type="button"
+                className="admin-order__action-btn admin-order__action-btn--deliver"
+                onClick={() => handleUpdate("delivered")}
+                disabled={isUpdating}
+              >
+                {isUpdating ? (
+                  <svg className="admin-order__spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                ) : (
+                  "✓ Mark Delivered"
+                )}
+              </button>
+              <button
+                type="button"
+                className="admin-order__action-btn admin-order__action-btn--cancel"
+                onClick={() => handleUpdate("cancelled")}
+                disabled={isUpdating}
+              >
+                {isUpdating ? "..." : "✖ Cancel Order"}
               </button>
             </>
           )}

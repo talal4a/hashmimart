@@ -11,6 +11,12 @@ const STATUS_CONFIG = {
     icon: 'pulse',
     className: 'pending',
   },
+  confirmed: {
+    title: 'Order Confirmed!',
+    message: 'Order Confirmed! We are preparing your items.',
+    icon: 'pulse',
+    className: 'confirmed',
+  },
   delivered: {
     title: 'Order Delivered!',
     message: 'Your order has been delivered.',

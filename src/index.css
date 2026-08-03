@@ -2600,8 +2600,13 @@ select {
 }
 
 .status-icon--delivered {
-  background: rgba(46, 125, 50, 0.15);
+  background: rgba(46, 125, 50, 0.12);
   color: var(--success);
+}
+
+.status-icon--confirmed {
+  background: rgba(14, 165, 233, 0.12);
+  color: var(--info);
 }
 
 .status-icon--cancelled {
@@ -2643,6 +2648,13 @@ select {
 .status-message-pending {
   background: rgba(var(--accent-rgb), 0.1);
   border: 2px solid rgba(var(--accent-rgb), 0.25);
+}
+
+.status-message-confirmed {
+  background: rgba(14, 165, 233, 0.12);
+  border: 2px solid rgba(14, 165, 233, 0.3);
+  color: #0284c7;
+  font-weight: 700;
 }
 
 .status-message-delivered {
@@ -3630,6 +3642,16 @@ select {
 .admin-order__action-btn--cancel:hover {
   background: #fef2f2;
   border-color: #ef4444;
+}
+
+.admin-order__spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 0.25rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* Stack the deliver/cancel actions on mobile */

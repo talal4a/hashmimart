@@ -731,7 +731,7 @@ export function StoreProvider({ children }) {
         throw new Error("Order ID is missing or undefined");
       }
 
-      if (!["pending", "delivered", "cancelled"].includes(newStatus)) {
+      if (!["pending", "confirmed", "delivered", "cancelled"].includes(newStatus)) {
         throw new Error(`Invalid status: ${newStatus}`);
       }
 

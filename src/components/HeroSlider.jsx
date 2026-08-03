@@ -59,6 +59,24 @@ const slides = [
     link: "/products/retail",
     accent: "#dc2626",
   },
+  {
+    id: 6,
+    title: "Premium Quality Rice",
+    subtitle: "Aged to perfection for the best aroma and taste",
+    image: "/slider/rice",
+    cta: "Shop Rice",
+    link: "/products/retail",
+    accent: "#0ea5e9", // cyan/blue as requested
+  },
+  {
+    id: 7,
+    title: "Authentic Spices",
+    subtitle: "Rich, flavorful, and sourced from the best farms",
+    image: "/slider/spices",
+    cta: "Shop Spices",
+    link: "/products/retail",
+    accent: "#d97706",
+  },
 ];
 
 /* Slide counter lives in its own component so the 4s tick only re-renders

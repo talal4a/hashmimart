@@ -50,7 +50,7 @@ export default function MyOrderDetailPage() {
     }
   }
 
-  const statusLabels = { pending: 'Pending', delivered: 'Delivered', cancelled: 'Cancelled' }
+  const statusLabels = { pending: 'Pending', confirmed: 'Confirmed', delivered: 'Delivered', cancelled: 'Cancelled' }
 
   return (
     <div className="my-order-detail-page">
