@@ -13,6 +13,7 @@ import {
   loadCategories as loadLocalCategories,
   saveCategories as saveLocalCategories,
 } from "../data/categoryStore";
+import { getDeliveryCharge } from "../lib/delivery";
 
 const CART_KEY = "hashmi-network-cart";
 const SESSION_KEY = "hashmi-session";
@@ -589,7 +590,7 @@ export function StoreProvider({ children }) {
       { isVoiceOrder = false, voiceAudioBlob = null } = {},
     ) => {
       const displayId = createOrderId();
-      const orderTotal = isVoiceOrder
+      const subtotal = isVoiceOrder
         ? 0
         : cart.reduce((sum, item) => {
             const finalPrice =
@@ -598,6 +599,10 @@ export function StoreProvider({ children }) {
                 : item.price;
             return sum + finalPrice * item.quantity;
           }, 0);
+      // Rs 50 flat delivery, waived on orders of Rs 500+ (see lib/delivery).
+      // Voice orders are priced by the team later, so no charge is applied.
+      const deliveryCharge = isVoiceOrder ? 0 : getDeliveryCharge(subtotal);
+      const orderTotal = subtotal + deliveryCharge;
 
       const {
         data: { user },
@@ -709,6 +714,7 @@ export function StoreProvider({ children }) {
         customer: customerInfo,
         items: isVoiceOrder ? [] : cart.map((item) => ({ ...item })),
         total: orderTotal,
+        deliveryCharge,
         paymentMethod: customerInfo.paymentMethod || "Cash on Delivery",
         estimatedDelivery: null,
         isVoiceOrder,

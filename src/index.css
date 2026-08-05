@@ -98,6 +98,12 @@
   --accent-end: #06b6d4;
   --accent-end-hover: #0891b2;
   --accent-fg: #ffffff;
+  /* Gold = reward color for the free-delivery nudge */
+  --gold: #b45309;
+  --gold-bright: #f59e0b;
+  --gold-soft: #fef3c7;
+  --gold-border: #fcd34d;
+  --gold-fg: #92400e;
 }
 
 /* Dark: near-black surfaces, cyan accent */
@@ -120,6 +126,12 @@
   --accent-end: #06b6d4;
   --accent-end-hover: #22d3ee;
   --accent-fg: #0a0a0a;
+  /* Gold = reward color for the free-delivery nudge */
+  --gold: #fbbf24;
+  --gold-bright: #f59e0b;
+  --gold-soft: rgba(180, 83, 9, 0.16);
+  --gold-border: rgba(251, 191, 36, 0.45);
+  --gold-fg: #fcd34d;
 }
 
 html,
@@ -4135,6 +4147,53 @@ select {
   color: #dc2626;
 }
 
+/* Right side of the card header: FREE Delivery badge + status pill */
+.admin-order__header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.admin-order__free-delivery {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: #78350f;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.35);
+}
+
+/* FREE row inside the order totals table */
+.admin-order__delivery-label {
+  font-size: 0.88rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.admin-order__delivery-free {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #16a34a;
+  white-space: nowrap;
+}
+
+.admin-order__delivery-free s {
+  color: #94a3b8;
+  font-weight: 600;
+  margin-right: 0.3rem;
+  text-decoration-thickness: 1.5px;
+}
+
 .admin-order__checkbox {
   display: flex;
   align-items: center;
@@ -5288,6 +5347,200 @@ select {
   cursor: pointer;
   padding: 0;
   width: 100%;
+}
+
+/* ── GOLD DELIVERY FEATURE (checkout + cart) ──
+   Gold = reward color for the free-delivery nudge. Theme-aware via --gold
+   variables; the checkout cards themselves are white, so both modes read
+   clearly. Progress bar animates width only (transform/opacity-free, cheap). */
+.checkout-gold-text {
+  color: var(--gold);
+  font-weight: 800;
+}
+
+/* Payment-method section banner */
+.checkout-delivery-banner {
+  margin-top: 1.25rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: 14px;
+  background: var(--gold-soft);
+  border: 1.5px solid var(--gold-border);
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.checkout-delivery-banner--unlocked {
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  border-color: var(--gold);
+}
+
+.checkout-delivery-banner--unlocked .checkout-delivery-banner-title,
+.checkout-delivery-banner--unlocked .checkout-delivery-banner-text {
+  color: #fff;
+}
+
+.checkout-delivery-banner-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.checkout-delivery-banner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.checkout-delivery-banner-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--gold-fg);
+  margin-bottom: 2px;
+}
+
+.checkout-delivery-banner-text {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.checkout-delivery-banner-tag {
+  flex-shrink: 0;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.14);
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.checkout-delivery-banner-tag--free {
+  background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(217, 119, 6, 0.35);
+}
+
+/* Order summary rows */
+.order-summary-rows {
+  margin-bottom: 0.75rem;
+}
+
+.order-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.45rem 0;
+  font-size: 0.95rem;
+  color: #64748b;
+}
+
+.order-summary-row strong {
+  color: #0f172a;
+}
+
+.order-summary-row .order-summary-free s {
+  color: #94a3b8;
+  margin-right: 2px;
+}
+
+/* Gold free-delivery progress card */
+.free-delivery-card {
+  padding: 1rem 1.15rem;
+  border-radius: 14px;
+  background: var(--gold-soft);
+  border: 1.5px solid var(--gold-border);
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.12);
+  margin-bottom: 1rem;
+}
+
+.free-delivery-card--unlocked {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-color: var(--gold-bright);
+}
+
+.free-delivery-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.free-delivery-card-icon {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+
+.free-delivery-card-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.free-delivery-card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--gold-fg);
+  margin-bottom: 2px;
+}
+
+.free-delivery-card-text {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.free-delivery-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(217, 119, 6, 0.16);
+  overflow: hidden;
+  margin: 0.75rem 0 0.4rem;
+}
+
+.free-delivery-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.free-delivery-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+
+/* Total box — stays in the cyan brand language */
+.order-summary-total-box {
+  padding: 1rem;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 8px;
+  border: 1px solid #06b6d4;
+}
+
+.order-summary-total-box span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.order-summary-total-box strong {
+  display: block;
+  font-size: 1.8rem;
+  color: #06b6d4;
+  margin-top: 0.25rem;
+}
+
+/* Cart page delivery row + nudge */
+.cart-summary-free s {
+  color: #94a3b8;
+  margin-right: 2px;
+}
+
+.cart-summary-free-nudge {
+  margin: -0.25rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .add-item-cancel-link:hover {

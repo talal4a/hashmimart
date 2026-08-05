@@ -1,8 +1,17 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatPrice } from "../data/products";
+import {
+  DELIVERY_CHARGE,
+  FREE_DELIVERY_THRESHOLD,
+  getDeliveryCharge,
+  getFreeDeliveryRemaining,
+  getFreeDeliveryProgress,
+  isFreeDelivery,
+} from "../lib/delivery";
 import { useStore } from "../context/StoreContext";
 import { useAuth } from "../context/AuthContext";
+import Celebration from "../components/Celebration";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -50,6 +59,14 @@ export default function CheckoutPage() {
   });
 
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
+
+  /* Delivery is a flat Rs 50, waived on orders of Rs 500+ (the gold nudge
+     below). Voice orders are priced by the team later, so no charge applies. */
+  const deliveryCharge = voiceOrderAudio ? 0 : getDeliveryCharge(cartTotal);
+  const orderTotal = cartTotal + deliveryCharge;
+  const freeDeliveryUnlocked = isFreeDelivery(cartTotal);
+  const freeDeliveryRemaining = getFreeDeliveryRemaining(cartTotal);
+  const freeDeliveryProgress = getFreeDeliveryProgress(cartTotal);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -126,6 +143,11 @@ export default function CheckoutPage() {
 
   return (
     <div className="add-item-page">
+      {/* Full-page glitter burst the moment the cart qualifies for free
+          delivery (Rs 500+). Mounts only while unlocked, so it fires once
+          per unlock and stays quiet below the threshold. */}
+      {freeDeliveryUnlocked && <Celebration />}
+
       {/* Page Header */}
       <div className="add-item-header">
         <div className="add-item-title-area">
@@ -461,6 +483,46 @@ export default function CheckoutPage() {
               </label>
             </div>
 
+            {/* Delivery charges — locked at Rs 50, gold nudge for FREE */}
+            {!voiceOrderAudio && (
+              <div
+                className={`checkout-delivery-banner ${freeDeliveryUnlocked ? "checkout-delivery-banner--unlocked" : ""}`}
+              >
+                <span
+                  className="checkout-delivery-banner-icon"
+                  aria-hidden="true"
+                >
+                  {freeDeliveryUnlocked ? "🎉" : "🚚"}
+                </span>
+                <div className="checkout-delivery-banner-body">
+                  <p className="checkout-delivery-banner-title">
+                    {freeDeliveryUnlocked
+                      ? "FREE Delivery Unlocked!"
+                      : "Delivery Charges"}
+                  </p>
+                  <p className="checkout-delivery-banner-text">
+                    {freeDeliveryUnlocked ? (
+                      "Your order qualifies for free delivery."
+                    ) : (
+                      <>
+                        Order more than{" "}
+                        <span className="checkout-gold-text">
+                          Rs {FREE_DELIVERY_THRESHOLD}
+                        </span>{" "}
+                        and delivery is{" "}
+                        <span className="checkout-gold-text">FREE</span>!
+                      </>
+                    )}
+                  </p>
+                </div>
+                <span
+                  className={`checkout-delivery-banner-tag ${freeDeliveryUnlocked ? "checkout-delivery-banner-tag--free" : ""}`}
+                >
+                  {freeDeliveryUnlocked ? "FREE" : `Rs ${DELIVERY_CHARGE}`}
+                </span>
+              </div>
+            )}
+
             {paymentMethod === "JazzCash" && (
               <div
                 style={{
@@ -630,28 +692,71 @@ export default function CheckoutPage() {
                       </div>
                     ))}
                   </div>
+                  <div className="order-summary-rows">
+                    <div className="order-summary-row">
+                      <span>Subtotal</span>
+                      <strong>{formatPrice(cartTotal)}</strong>
+                    </div>
+                    <div className="order-summary-row">
+                      <span>Delivery</span>
+                      {freeDeliveryUnlocked ? (
+                        <span className="order-summary-free">
+                          <s>Rs 50</s>{" "}
+                          <span className="checkout-gold-text">FREE</span>
+                        </span>
+                      ) : (
+                        <strong>{formatPrice(deliveryCharge)}</strong>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Gold free-delivery progress card */}
                   <div
-                    style={{
-                      padding: "1rem",
-                      background:
-                        "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
-                      borderRadius: "8px",
-                      border: "1px solid #06b6d4",
-                    }}
+                    className={`free-delivery-card ${freeDeliveryUnlocked ? "free-delivery-card--unlocked" : ""}`}
                   >
-                    <span style={{ color: "#64748b", fontSize: "0.9rem" }}>
-                      Total
-                    </span>
-                    <strong
-                      style={{
-                        display: "block",
-                        fontSize: "1.8rem",
-                        color: "#06b6d4",
-                        marginTop: "0.25rem",
-                      }}
+                    <div className="free-delivery-card-head">
+                      <span
+                        className="free-delivery-card-icon"
+                        aria-hidden="true"
+                      >
+                        {freeDeliveryUnlocked ? "🎉" : "🚚"}
+                      </span>
+                      <div className="free-delivery-card-copy">
+                        <p className="free-delivery-card-title">
+                          {freeDeliveryUnlocked
+                            ? "You've unlocked FREE delivery!"
+                            : `Add ${formatPrice(freeDeliveryRemaining)} more for FREE delivery`}
+                        </p>
+                        <p className="free-delivery-card-text">
+                          {freeDeliveryUnlocked
+                            ? "Enjoy your order — delivery is on us."
+                            : `Orders above ${formatPrice(FREE_DELIVERY_THRESHOLD)} ship free.`}
+                        </p>
+                      </div>
+                    </div>
+                    <div
+                      className="free-delivery-progress-track"
+                      role="progressbar"
+                      aria-valuenow={freeDeliveryProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
                     >
-                      {formatPrice(cartTotal)}
-                    </strong>
+                      <div
+                        className="free-delivery-progress-fill"
+                        style={{ width: `${freeDeliveryProgress}%` }}
+                      />
+                    </div>
+                    <div className="free-delivery-progress-labels">
+                      <span>{formatPrice(cartTotal)}</span>
+                      <span className="checkout-gold-text">
+                        {formatPrice(FREE_DELIVERY_THRESHOLD)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="order-summary-total-box">
+                    <span>Total</span>
+                    <strong>{formatPrice(orderTotal)}</strong>
                   </div>
                 </>
               )}

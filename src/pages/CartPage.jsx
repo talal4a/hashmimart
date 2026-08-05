@@ -1,11 +1,22 @@
 import { Link } from "react-router-dom";
 import { formatPrice } from "../data/products";
+import {
+  FREE_DELIVERY_THRESHOLD,
+  getDeliveryCharge,
+  getFreeDeliveryRemaining,
+  isFreeDelivery,
+} from "../lib/delivery";
 import { useStore } from "../context/StoreContext";
 import QuantityControl from "../components/QuantityControl";
 import { IconTrash } from "../components/Icons";
 
 export default function CartPage() {
   const { cart, cartTotal, updateCartQuantity, removeFromCart } = useStore();
+
+  const deliveryCharge = getDeliveryCharge(cartTotal);
+  const orderTotal = cartTotal + deliveryCharge;
+  const freeDeliveryUnlocked = isFreeDelivery(cartTotal);
+  const freeDeliveryRemaining = getFreeDeliveryRemaining(cartTotal);
 
   if (cart.length === 0) {
     return (
@@ -95,11 +106,23 @@ export default function CartPage() {
         </div>
         <div className="cart-summary-row cart-summary-row-muted">
           <span>Delivery</span>
-          <span>Lahore only</span>
+          {freeDeliveryUnlocked ? (
+            <span className="cart-summary-free">
+              <s>Rs 50</s> <span className="checkout-gold-text">FREE</span>
+            </span>
+          ) : (
+            <span>{formatPrice(deliveryCharge)}</span>
+          )}
         </div>
+        {!freeDeliveryUnlocked && (
+          <p className="cart-summary-free-nudge checkout-gold-text">
+            🚚 Add {formatPrice(freeDeliveryRemaining)} more to get FREE
+            delivery on orders above {formatPrice(FREE_DELIVERY_THRESHOLD)}!
+          </p>
+        )}
         <div className="cart-summary-row cart-summary-row-total">
           <span>Total</span>
-          <strong>{formatPrice(cartTotal)}</strong>
+          <strong>{formatPrice(orderTotal)}</strong>
         </div>
         <Link to="/checkout" className="btn btn-primary btn-block">
           Proceed to Checkout

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatPrice } from "../../data/products";
+import { DELIVERY_CHARGE, isFreeDelivery } from "../../lib/delivery";
 import { useStore } from "../../context/StoreContext";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -198,6 +199,15 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
   const isTerminal =
     order.status === "delivered" || order.status === "cancelled";
   const canDelete = isTerminal && order.dbId;
+
+  // deliveryCharge isn't persisted on the orders row, so recompute the
+  // subtotal from the saved line items — the same rule checkout applies
+  // (Rs 500+ ships free). Voice orders are priced later, never free.
+  const itemsSubtotal = (order.items || []).reduce(
+    (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
+    0,
+  );
+  const freeDelivery = !order.isVoiceOrder && isFreeDelivery(itemsSubtotal);
   const handleUpdate = async (newStatus) => {
     setIsUpdating(true);
     try {
@@ -235,11 +245,37 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
             </time>
           </div>
         </div>
-        <span
-          className={`admin-order__status admin-order__status--${order.status}`}
-        >
-          {order.status}
-        </span>
+        <div className="admin-order__header-right">
+          {freeDelivery && (
+            <span
+              className="admin-order__free-delivery"
+              title="Order qualifies for free delivery (Rs 500+)"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11" />
+                <path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2" />
+                <circle cx="7" cy="18" r="2" />
+                <circle cx="17" cy="18" r="2" />
+              </svg>
+              FREE Delivery
+            </span>
+          )}
+          <span
+            className={`admin-order__status admin-order__status--${order.status}`}
+          >
+            {order.status}
+          </span>
+        </div>
       </header>
 
       <div className="admin-order__body">
@@ -341,6 +377,20 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
                   ))}
                 </tbody>
                 <tfoot>
+                  {freeDelivery && (
+                    <tr>
+                      <td colSpan="3">
+                        <span className="admin-order__delivery-label">
+                          Delivery
+                        </span>
+                      </td>
+                      <td>
+                        <span className="admin-order__delivery-free">
+                          <s>{formatPrice(DELIVERY_CHARGE)}</s> FREE
+                        </span>
+                      </td>
+                    </tr>
+                  )}
                   <tr>
                     <td colSpan="3">
                       <strong>Total</strong>
