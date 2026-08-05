@@ -15,7 +15,8 @@ export default function BottomNavigation() {
     { 
       to: '/', 
       icon: <IconHome />, 
-      label: 'Home'
+      label: 'Home',
+      isHome: true
     },
     { 
       to: '/products/retail', 
@@ -58,7 +59,7 @@ export default function BottomNavigation() {
             to={item.to}
             className={`bottom-nav-item ${isActive ? 'bottom-nav-item-active' : ''}`}
           >
-            <div className="bottom-nav-icon-wrapper">
+            <div className={`bottom-nav-icon-wrapper ${item.isHome ? 'bottom-nav-icon-home' : ''}`}>
               {item.icon}
               {item.badge && <span className="bottom-nav-badge">{item.badge}</span>}
             </div>

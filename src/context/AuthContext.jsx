@@ -61,6 +61,18 @@ export function AuthProvider({ children }) {
       },
     });
     if (error) throw error;
+
+    // Brand-new account → show the one-time Direct Order spotlight on the
+    // home page the first time they land there (immediately when the session
+    // is returned, or on first login after email confirmation). The flag is
+    // consumed the moment the spotlight is dismissed, so it only ever shows
+    // once per browser.
+    try {
+      localStorage.setItem("hashmi-direct-order-spotlight", "1");
+    } catch {
+      // Storage unavailable — the spotlight simply won't show. Not fatal.
+    }
+
     return data;
   }, []);
 

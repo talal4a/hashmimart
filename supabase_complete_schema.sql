@@ -362,19 +362,36 @@ CREATE POLICY "notifications_update_staff" ON notifications
     )
   );
 
+-- Any authenticated user can raise a staff alert (new-order notifications
+-- are inserted by the customer who placed the order). Staff can additionally
+-- insert customer notifications for status updates.
 DROP POLICY IF EXISTS "notifications_insert_staff" ON notifications;
-CREATE POLICY "notifications_insert_staff" ON notifications
+DROP POLICY IF EXISTS "notifications_insert_authenticated" ON notifications;
+CREATE POLICY "notifications_insert_authenticated" ON notifications
   FOR INSERT TO authenticated
   WITH CHECK (
-    EXISTS (
+    audience = 'staff'
+    OR EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
     )
   );
 
+-- Customers delete their own notifications; only staff may delete the
+-- staff feed (the old policy let any customer wipe staff alerts).
 DROP POLICY IF EXISTS "notifications_delete_user" ON notifications;
-CREATE POLICY "notifications_delete_user" ON notifications
-  FOR DELETE TO authenticated USING (user_id = auth.uid() OR audience = 'staff');
+CREATE POLICY "notifications_delete_staff" ON notifications
+  FOR DELETE TO authenticated
+  USING (
+    user_id = auth.uid()
+    OR (
+      audience = 'staff'
+      AND EXISTS (
+        SELECT 1 FROM profiles
+        WHERE profiles.id = auth.uid() AND profiles.role IN ('superadmin', 'ordermanager', 'staff')
+      )
+    )
+  );
 
 -- ── Profiles Policies ──────────────────────────────────────────
 

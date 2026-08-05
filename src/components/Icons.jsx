@@ -36,6 +36,8 @@ export function IconHome({ size = 24 }) {
   );
 }
 
+/* Classable per-corner so CSS can animate the four squares splitting apart
+   and settling back together. */
 export function IconCategories({ size = 24 }) {
   return (
     <svg
@@ -49,10 +51,10 @@ export function IconCategories({ size = 24 }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <rect width="7" height="7" x="3" y="3" rx="1" />
-      <rect width="7" height="7" x="14" y="3" rx="1" />
-      <rect width="7" height="7" x="14" y="14" rx="1" />
-      <rect width="7" height="7" x="3" y="14" rx="1" />
+      <rect className="icon-grid-tl" width="7" height="7" x="3" y="3" rx="1" />
+      <rect className="icon-grid-tr" width="7" height="7" x="14" y="3" rx="1" />
+      <rect className="icon-grid-br" width="7" height="7" x="14" y="14" rx="1" />
+      <rect className="icon-grid-bl" width="7" height="7" x="3" y="14" rx="1" />
     </svg>
   );
 }
@@ -225,6 +227,8 @@ export function IconMic({ size = 20 }) {
   );
 }
 
+/* Split into classable parts (walls / roof / door) so CSS can animate the
+   house assembling: the lower part appears first, then the roof drops on. */
 export function IconStore({ size = 28 }) {
   return (
     <svg
@@ -238,12 +242,21 @@ export function IconStore({ size = 28 }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
+      <path
+        className="icon-store-body"
+        d="M3 9v11a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9"
+      />
+      <path className="icon-store-roof" d="M3 9 12 2l9 7" />
+      <polyline
+        className="icon-store-door"
+        points="9 22 9 12 15 12 15 22"
+      />
     </svg>
   );
 }
 
+/* Classable parts: the front flap (the V on the top face) folds back like a
+   box lid opening, while the body and back seam stay put. */
 export function IconPackage({ size = 28 }) {
   return (
     <svg
@@ -257,9 +270,21 @@ export function IconPackage({ size = 28 }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line
+        className="icon-package-seam"
+        x1="16.5"
+        y1="9.4"
+        x2="7.5"
+        y2="4.21"
+      />
+      <path
+        className="icon-package-body"
+        d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
+      />
+      <polyline
+        className="icon-package-lid"
+        points="3.27 6.96 12 12.01 20.73 6.96"
+      />
       <line x1="12" y1="22.08" x2="12" y2="12" />
     </svg>
   );
@@ -307,6 +332,8 @@ export function IconFresh({ size = 28 }) {
   );
 }
 
+/* The $ is split into classable parts so CSS can animate the real icon itself
+   (the blue card's own icon draws in a loop — no separate badge needed). */
 export function IconBestPrice({ size = 28 }) {
   return (
     <svg
@@ -320,12 +347,17 @@ export function IconBestPrice({ size = 28 }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <line x1="12" y1="1" x2="12" y2="23" />
-      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+      <line className="icon-dollar-line" x1="12" y1="1" x2="12" y2="23" />
+      <path
+        className="icon-dollar-curve"
+        d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+      />
     </svg>
   );
 }
 
+/* Classable parts: the paper shows first, then the plus draws on top (the
+   same sequence as the Fresh Produce shield-then-tick). */
 export function IconDirectOrder({ size = 28 }) {
   return (
     <svg
@@ -339,10 +371,13 @@ export function IconDirectOrder({ size = 28 }) {
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="12" y1="18" x2="12" y2="12" />
-      <line x1="9" y1="15" x2="15" y2="15" />
+      <path
+        className="icon-paper"
+        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+      />
+      <polyline className="icon-fold" points="14 2 14 8 20 8" />
+      <line className="icon-plus-v" x1="12" y1="18" x2="12" y2="12" />
+      <line className="icon-plus-h" x1="9" y1="15" x2="15" y2="15" />
     </svg>
   );
 }
@@ -387,6 +422,33 @@ export function IconMoon({ size = 22 }) {
       aria-hidden="true"
     >
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+/* Shield + check with classable parts so CSS can animate "shield first, then
+   the tick draws" in a loop (used on the Fresh Produce guarantee card). */
+export function IconSecure({ size = 28 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path
+        className="icon-secure-shield"
+        d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+      />
+      <polyline
+        className="icon-secure-check"
+        points="9 12 11 14 15 10"
+      />
     </svg>
   );
 }

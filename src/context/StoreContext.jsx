@@ -393,7 +393,7 @@ export function StoreProvider({ children }) {
             orderId: n.orders?.display_id,
             message: n.message,
             is_read: n.is_read,
-            created_at: n.created_at,
+            createdAt: n.created_at,
           })),
         );
       } finally {
@@ -439,7 +439,7 @@ export function StoreProvider({ children }) {
                     id: row.id,
                     orderId: row.orders?.display_id,
                     message: row.message,
-                    read: row.is_read,
+                    is_read: row.is_read,
                     createdAt: row.created_at,
                   },
                   ...prev,
@@ -814,7 +814,7 @@ export function StoreProvider({ children }) {
                     orderId: notifRow.orders?.display_id,
                     message: notifRow.message,
                     is_read: notifRow.is_read,
-                    created_at: notifRow.created_at,
+                    createdAt: notifRow.created_at,
                   },
                   ...prev,
                 ],
