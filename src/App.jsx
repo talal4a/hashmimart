@@ -24,6 +24,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import MyOrdersPage from "./pages/MyOrdersPage";
 import MyOrderDetailPage from "./pages/MyOrderDetailPage";
@@ -104,6 +105,10 @@ function AppRoutes() {
           </GuestRoute>
         }
       />
+      {/* Landing page for the email reset link. Not a GuestRoute: the link
+          signs the user in with a recovery session, so this route must stay
+          accessible once that session exists. */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route
         path="/"
         element={

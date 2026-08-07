@@ -137,9 +137,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const resetPassword = useCallback(async (email) => {
+    // Set VITE_BASE_URL (e.g. https://hashminetwork.com) in the Vercel
+    // environment so the email link always points at the live domain — never
+    // at a developer's localhost.
     const baseUrl = import.meta.env.VITE_BASE_URL || window.location.origin;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${baseUrl}/login`,
+      redirectTo: `${baseUrl}/reset-password`,
     });
     if (error) throw error;
   }, []);
