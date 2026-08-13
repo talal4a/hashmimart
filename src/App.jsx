@@ -12,6 +12,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { ChatProvider } from "./context/ChatContext";
 import Layout from "./components/Layout";
 import SplashScreen from "./components/SplashScreen";
+import InstallPromptOverlay from "./components/InstallPromptOverlay";
 import PageLoader from "./components/PageLoader";
 import CategoriesPage from "./pages/CategoriesPage";
 import ProductsPage, { getProductsTitle } from "./pages/ProductsPage";
@@ -241,6 +242,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <SplashScreen />
+      <InstallPromptOverlay />
       <StoreProvider>
         <BrowserRouter>
           <AuthProvider>
