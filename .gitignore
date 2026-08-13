@@ -36,3 +36,6 @@ after-effects-mcp
 
 # Local Claude Code settings — machine-specific, contains auth tokens
 .claude/settings.local.json
+
+# Local desktop app database (contains session tokens / API keys) - never commit
+.freebuff
