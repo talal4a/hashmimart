@@ -160,6 +160,27 @@ export default function Header({ title, showBack = false, backTo = "/" }) {
                 >
                   Direct Orders
                 </Link>
+                <Link
+                  to="/privacy-policy"
+                  className="profile-dropdown-item"
+                  onClick={() => setProfileDropdownOpen(false)}
+                >
+                  Privacy Policy
+                </Link>
+                <Link
+                  to="/terms"
+                  className="profile-dropdown-item"
+                  onClick={() => setProfileDropdownOpen(false)}
+                >
+                  Terms & Conditions
+                </Link>
+                <Link
+                  to="/delete-account"
+                  className="profile-dropdown-item profile-dropdown-item--logout"
+                  onClick={() => setProfileDropdownOpen(false)}
+                >
+                  Delete Account
+                </Link>
                 <button
                   type="button"
                   className="profile-dropdown-item profile-dropdown-item--logout"
@@ -206,6 +227,20 @@ export default function Header({ title, showBack = false, backTo = "/" }) {
               </Link>
             </>
           )}
+          <Link
+            to="/privacy-policy"
+            className="header__dropdown-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            className="header__dropdown-link"
+            onClick={() => setMenuOpen(false)}
+          >
+            Terms & Conditions
+          </Link>
         </div>
 
         <div className="header__links-desktop">

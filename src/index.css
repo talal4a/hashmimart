@@ -10677,3 +10677,143 @@ body,
 .install-prompt__actions .btn {
   flex: 1;
 }
+
+/* ============ Legal pages (Privacy Policy / Terms / Delete Account) ============ */
+.legal-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2.5rem;
+}
+
+.legal-page__header {
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-page__updated {
+  margin: 0 0 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.legal-page h2 {
+  margin: 1.9rem 0 0.6rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--fg);
+}
+
+.legal-page h3 {
+  margin: 1.4rem 0 0.45rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+.legal-page p {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--fg);
+}
+
+.legal-page ul {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.legal-page li {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--fg);
+}
+
+.legal-page a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.legal-page__placeholder {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  background: rgba(var(--accent-rgb), 0.1);
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.legal-page__muted {
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* ============ Delete Account page ============ */
+.delete-account__confirm {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 1rem 0 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.delete-account__confirm input {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 0.15rem;
+  accent-color: var(--accent);
+}
+
+.delete-account__error {
+  margin: 1rem 0 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  color: var(--danger);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.delete-account__actions {
+  margin-top: 1.25rem;
+}
+
+.delete-account__actions .btn {
+  width: 100%;
+}
+
+.delete-account__success {
+  margin-top: 1rem;
+  padding: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
+  color: var(--fg);
+}
+
+.delete-account__success-title {
+  margin: 0 0 0.5rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.delete-account__success-link {
+  display: inline-flex;
+  margin-top: 1rem;
+}

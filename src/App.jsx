@@ -34,6 +34,9 @@ import MyOrderDetailPage from "./pages/MyOrderDetailPage";
 // panel — it is only unrouted for customers, not removed.
 import AiSupportChatPage from "./pages/AiSupportChatPage";
 import DirectOrderPage from "./pages/DirectOrderPage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsPage from "./pages/TermsPage";
+import DeleteAccountPage from "./pages/DeleteAccountPage";
 import { isStaff as roleIsStaff, landingPathForRole } from "./lib/permissions";
 
 function ProductsRoute() {
@@ -142,6 +145,22 @@ function AppRoutes() {
           <Layout title="Wishlist" showBack backTo="/">
             <WishlistPage />
           </Layout>
+        }
+      />
+      <Route
+        path="/privacy-policy"
+        element={<PrivacyPolicyPage />}
+      />
+      <Route
+        path="/terms"
+        element={<TermsPage />}
+      />
+      <Route
+        path="/delete-account"
+        element={
+          <ProtectedRoute>
+            <DeleteAccountPage />
+          </ProtectedRoute>
         }
       />
       <Route
