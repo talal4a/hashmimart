@@ -1,4 +1,4 @@
-export default function Logo({ className = "", title = "Hashmi Network" }) {
+export default function Logo({ className = "", title = "Hashmi Mart" }) {
   return (
     <img
       src="/logo-black.png"
