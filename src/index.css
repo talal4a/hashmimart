@@ -140,6 +140,14 @@ body,
   min-height: 100%;
 }
 
+html {
+  overflow-y: scroll;
+}
+
+#root {
+  overflow: hidden;
+}
+
 body {
   background: var(--bg);
   color: var(--fg);
