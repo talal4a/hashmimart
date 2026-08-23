@@ -63,9 +63,7 @@ function ProtectedRoute({ role, staff, children }) {
     );
   }
   if (role && profile.role !== role) return <Navigate to="/" replace />;
-  // Any staff role (superadmin or ordermanager) may enter; per-section access is
-  // enforced inside AdminDashboard so a disallowed section shows a 403 rather
-  // than silently bouncing to the storefront.
+
   if (staff && !roleIsStaff(profile.role)) return <Navigate to="/" replace />;
 
   return children;
