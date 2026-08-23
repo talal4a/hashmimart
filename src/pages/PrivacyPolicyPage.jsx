@@ -63,7 +63,8 @@ export default function PrivacyPolicyPage() {
           <li>
             <strong>Full name and phone number</strong> — provided when you
             sign up, stored in your profile and used for delivery and support
-            contact.
+            contact. Phone number is optional but helps us reach you about
+            your delivery.
           </li>
           <li>
             Account-related emails only: a confirmation email when you sign up
@@ -109,7 +110,7 @@ export default function PrivacyPolicyPage() {
             the assistant and then <strong>deleted immediately</strong> — only
             the text transcript is kept.
           </li>
-          <li>Any messages you send us through the contact form or email.</li>
+          <li>Any messages you send us through the support chat or email.</li>
         </ul>
         <h3>In-app notifications</h3>
         <ul>
@@ -136,9 +137,9 @@ export default function PrivacyPolicyPage() {
         <h3>Stored on your device</h3>
         <ul>
           <li>
-            Your shopping cart, wishlist, a cached copy of the product
-            catalogue, your session identifier and theme preference are stored
-            in your browser&apos;s local storage.
+            Your shopping cart, wishlist, saved delivery addresses, a cached
+            copy of the product catalogue, your session identifier and theme
+            preference are stored in your browser&apos;s local storage.
           </li>
           <li>
             Supabase stores your login session locally so you stay signed in.

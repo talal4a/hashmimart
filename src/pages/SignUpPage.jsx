@@ -199,6 +199,16 @@ export default function SignUpPage() {
             </button>
           </form>
         )}
+        <p className="auth-legal-text">
+          By signing up you agree to our{' '}
+          <Link to="/privacy-policy" className="auth-link">
+            Privacy Policy
+          </Link>{' '}
+          and{' '}
+          <Link to="/terms" className="auth-link">
+            Terms &amp; Conditions
+          </Link>.
+        </p>
       </div>
     </div>
   );

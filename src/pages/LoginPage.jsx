@@ -91,6 +91,16 @@ export default function LoginPage() {
             Forgot password?
           </Link>
         </div>
+        <p className="auth-legal-text">
+          By logging in you agree to our{' '}
+          <Link to="/privacy-policy" className="auth-link">
+            Privacy Policy
+          </Link>{' '}
+          and{' '}
+          <Link to="/terms" className="auth-link">
+            Terms &amp; Conditions
+          </Link>.
+        </p>
       </div>
     </div>
   );
