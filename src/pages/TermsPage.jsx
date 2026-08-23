@@ -4,8 +4,8 @@ import Layout from "../components/Layout";
 const APP_NAME = "Hashmi Mart";
 const OPERATOR = "Hashmi Mart";
 const SUPPORT_EMAIL = "support@hashminetwork.com";
-const PHONE_HREF = "tel:+923087696420";
-const PHONE = "+92 308 7696420";
+const PHONE_HREF = "tel:+923104198984";
+const PHONE = "+92 310 4198984";
 
 export default function TermsPage() {
   return (
