@@ -1,23 +1,21 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
 
-const APP_NAME = "Hashmi Mart";
-const OPERATOR = "Hashmi Mart";
-const SUPPORT_EMAIL = "support@hashminetwork.com";
-const PRIVACY_EMAIL = "privacy@hashminetwork.com";
-const PHONE_HREF = "tel:+923104198984";
-const PHONE = "+92 310 4198984";
+const PRIVACY_URL = "https://hashmi-mart.com/privacy-policy";
 
 export default function PrivacyPolicyPage() {
+  useEffect(() => {
+    window.location.replace(PRIVACY_URL);
+  }, []);
+
   return (
     <Layout title="Privacy Policy" showBack backTo="/">
       <article className="legal-page">
         <header className="legal-page__header">
-          <p className="legal-page__updated">Last updated: August 13, 2026</p>
           <p>
-            This policy explains what information {APP_NAME} (operated by{" "}
-            {OPERATOR}) collects, how it is used, and the choices you have. It
-            applies to the app, its website, and related services.
+            Redirecting to our{' '}
+            <a href={PRIVACY_URL}>Privacy Policy</a>…
           </p>
         </header>
 

@@ -1,22 +1,21 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
 
-const APP_NAME = "Hashmi Mart";
-const OPERATOR = "Hashmi Mart";
-const SUPPORT_EMAIL = "support@hashminetwork.com";
-const PHONE_HREF = "tel:+923104198984";
-const PHONE = "+92 310 4198984";
+const TERMS_URL = "https://hashmi-mart.com/terms";
 
 export default function TermsPage() {
+  useEffect(() => {
+    window.location.replace(TERMS_URL);
+  }, []);
+
   return (
     <Layout title="Terms & Conditions" showBack backTo="/">
       <article className="legal-page">
         <header className="legal-page__header">
-          <p className="legal-page__updated">Last updated: August 13, 2026</p>
           <p>
-            These terms govern your use of {APP_NAME} and the {OPERATOR}{" "}
-            website. Please read them carefully before creating an account or
-            placing an order.
+            Redirecting to our{' '}
+            <a href={TERMS_URL}>Terms &amp; Conditions</a>…
           </p>
         </header>
 
