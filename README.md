@@ -1,4 +1,4 @@
-# Hashmi Network
+# Hashmi Mart
 
 Premium fresh groceries delivered fast in Lahore. A modern e-commerce application built with React, Vite, and Supabase.
 

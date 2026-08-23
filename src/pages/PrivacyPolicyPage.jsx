@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
 
 const APP_NAME = "Hashmi Mart";
-const OPERATOR = "Hashmi Network";
+const OPERATOR = "Hashmi Mart";
 const SUPPORT_EMAIL = "support@hashminetwork.com";
 const PRIVACY_EMAIL = "privacy@hashminetwork.com";
 const PHONE_HREF = "tel:+923087696420";

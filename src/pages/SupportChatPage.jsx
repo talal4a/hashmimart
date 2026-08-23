@@ -6,7 +6,7 @@ export default function SupportChatPage() {
       conversationType="support"
       title="Support"
       placeholder="Type your message..."
-      emptyText="Start a conversation with Hashmi Network Support."
+      emptyText="Start a conversation with Hashmi Mart Support."
     />
   );
 }
