@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 // the ORIGINAL language (unlike /translations, which forces English — that's
 // what api/voice-search.js wants, but the opposite of what support needs).
 const STT_MODEL = 'whisper-large-v3'
-const CHAT_MODEL = 'qwen/qwen3.6-27b'
+const CHAT_MODEL = 'openai/gpt-oss-120b'
 
 const MAX_MESSAGE_CHARS = 2000
 const MAX_HISTORY = 10
