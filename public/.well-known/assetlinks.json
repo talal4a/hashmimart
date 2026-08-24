@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "com.hashmimart.app",
       "sha256_cert_fingerprints": [
-        "7A:80:9F:EB:80:56:C4:4E:E1:17:DB:1F:28:6E:7D:1D:A9:28:98:EC:45:E8:A7:52:61:DF:3F:5E:56:D8:A9:0A"
+        "7A:80:9F:EB:80:56:C4:4E:E1:17:DB:1F:28:6E:7D:1D:A9:28:98:EC:45:E8:A7:52:61:DF:3F:5E:56:D8:A9:0A",
+        "7C:14:1D:C4:C9:DA:CC:59:5D:B5:D6:22:E1:42:88:49:6C:09:57:17:DF:42:DE:01:37:D6:32:F6:17:AE:E9:CD"
       ]
     }
   }
