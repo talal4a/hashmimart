@@ -775,7 +775,7 @@ export function StoreProvider({ children }) {
         // price breakdown (the total is still correct), so retry without it.
         if (isTextOrder) {
           throw new Error(
-            "Direct Order is temporarily unavailable. Please add items to your cart instead, or try again later.",
+            "Voice Order is temporarily unavailable. Please add items to your cart instead, or try again later.",
           );
         }
         ({ data: orderRow, error: orderError } = await supabase
@@ -829,7 +829,7 @@ export function StoreProvider({ children }) {
           order_id: orderRow.id,
           audience: "staff",
           message: isTextOrder
-            ? `New Direct Order #${displayId} from ${customerInfo.fullName} — list to price`
+            ? `New Voice Order #${displayId} from ${customerInfo.fullName} — list to price`
             : `New order #${displayId} from ${customerInfo.fullName} — Rs ${orderTotal}`,
           is_read: false,
         });

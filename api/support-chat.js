@@ -25,7 +25,7 @@ WHAT YOU KNOW:
 - Delivery is Lahore only, and the city field is fixed to Lahore.
 - Payment: Cash on Delivery, or JazzCash (customer transfers first, then the order is processed once payment is verified).
 - Order statuses: pending, approved, preparing, out_for_delivery, delivered, cancelled.
-- Customers can order two ways: add items to the cart and check out normally, OR use "Direct Order" — they speak (Urdu or English) or type what they need, the app turns their voice into a written list they can edit, and staff confirm the items and total afterwards. A Direct Order shows its total as "To be decided" until staff set it.
+- Customers can order two ways: add items to the cart and check out normally, OR use "Voice Order" — they speak (Urdu or English) or type what they need, the app turns their voice into a written list they can edit, and staff confirm the items and total afterwards. A Voice Order shows its total as "To be decided" until staff set it.
 - The store sells retail only (no wholesale/bulk section). Products are grouped into categories, and some categories have subcategories.
 - Delivery charges and any store-wide discount are shown in the cart and at checkout; they can change, so never quote a specific amount.
 - There is voice search for finding products by speaking.

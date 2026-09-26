@@ -810,7 +810,7 @@ export default function CheckoutPage() {
                 onClick={() => navigate(isDirectOrder ? "/direct-order" : "/cart")}
                 className="add-item-cancel-link"
               >
-                {isDirectOrder ? "Back to Direct Order" : "Back to Cart"}
+                {isDirectOrder ? "Back to Voice Order" : "Back to Cart"}
               </button>
             </div>
           </div>

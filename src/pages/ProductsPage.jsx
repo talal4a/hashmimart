@@ -32,16 +32,17 @@ export default function ProductsPage() {
     [shopProducts, category],
   );
 
-  const filteredProducts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return modeProducts;
+  const query = searchQuery.trim().toLowerCase();
+
+  const searchResults = useMemo(() => {
+    if (!query) return [];
     return modeProducts.filter(
       (product) =>
-        product.name.toLowerCase().includes(q) ||
+        product.name.toLowerCase().includes(query) ||
         (product.description &&
-          product.description.toLowerCase().includes(q)),
+          product.description.toLowerCase().includes(query)),
     );
-  }, [modeProducts, searchQuery]);
+  }, [modeProducts, query]);
 
   // One tile per main category; a subcategory's products count toward its
   // parent, since that's the page the tile opens.
@@ -59,6 +60,16 @@ export default function ProductsPage() {
       }),
     [productCategories, modeProducts],
   );
+
+  // Categories come first and products only open from a category, so an
+  // item with no (or an unknown) category would be unreachable — list those
+  // under the tiles instead.
+  const uncategorized = useMemo(() => {
+    // Before categories load, everything would look uncategorized.
+    if (productCategoriesLoading && productCategories.length === 0) return [];
+    const known = new Set(productCategories.map((c) => c.name));
+    return modeProducts.filter((p) => !known.has(p.productCategory));
+  }, [productCategories, productCategoriesLoading, modeProducts]);
 
   const categoryDisplayName = category
     ? getCategoryDisplayName(category)
@@ -99,20 +110,39 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Shop by Category — each tile opens that category's page */}
-      {!searchQuery.trim() &&
-        (categoryTiles.length > 0 || productCategoriesLoading) && (
+      {query ? (
+        /* Search jumps straight to matching products */
+        <div className="products-all">
+          <h2 className="section-title">Search Results</h2>
+          {searchResults.length > 0 ? (
+            <div className="product-grid">
+              {searchResults.map((product, i) => (
+                <div
+                  key={product.id}
+                  className={`animate-slide-up stagger-${Math.min(i + 1, 8)}`}
+                >
+                  <ProductCard product={product} />
+                </div>
+              ))}
+            </div>
+          ) : productsLoading ? (
+            <ProductGridSkeleton />
+          ) : (
+            <div className="empty-page">
+              <div className="empty-state">
+                No products found matching "{searchQuery}"
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Categories first — each tile opens that category's products */}
           <section className="shop-categories" aria-labelledby="shop-cat-title">
             <h2 id="shop-cat-title" className="section-title">
               Shop by Category
             </h2>
-            {categoryTiles.length === 0 ? (
-              <div className="shop-category-grid" aria-hidden="true">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <div key={i} className="skeleton-block shop-category-tile--skeleton" />
-                ))}
-              </div>
-            ) : (
+            {categoryTiles.length > 0 ? (
               <div className="shop-category-grid">
                 {categoryTiles.map((cat) => (
                   <Link
@@ -132,38 +162,43 @@ export default function ProductsPage() {
                   </Link>
                 ))}
               </div>
+            ) : productCategoriesLoading ? (
+              <div className="shop-category-grid" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="skeleton-block shop-category-tile--skeleton"
+                  />
+                ))}
+              </div>
+            ) : (
+              uncategorized.length === 0 && (
+                <div className="empty-page">
+                  <div className="empty-state">No categories yet.</div>
+                </div>
+              )
             )}
           </section>
-        )}
 
-      {/* All Products */}
-      <div className="products-all">
-        <h2 className="section-title">
-          {searchQuery.trim() ? "Search Results" : "All Products"}
-        </h2>
-        <div className="product-grid">
-          {filteredProducts.map((product, i) => (
-            <div
-              key={product.id}
-              className={`animate-slide-up stagger-${Math.min(i + 1, 8)}`}
-            >
-              <ProductCard product={product} />
+          {uncategorized.length > 0 && (
+            <div className="products-all">
+              <h2 className="section-title">
+                {categoryTiles.length > 0 ? "Other items" : "Products"}
+              </h2>
+              <div className="product-grid">
+                {uncategorized.map((product, i) => (
+                  <div
+                    key={product.id}
+                    className={`animate-slide-up stagger-${Math.min(i + 1, 8)}`}
+                  >
+                    <ProductCard product={product} />
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-        {productsLoading && filteredProducts.length === 0 && (
-          <ProductGridSkeleton />
-        )}
-        {!productsLoading && filteredProducts.length === 0 && (
-          <div className="empty-page">
-            <div className="empty-state">
-              {searchQuery.trim()
-                ? `No products found matching "${searchQuery}"`
-                : "No products here yet."}
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -171,5 +206,5 @@ export default function ProductsPage() {
 // eslint-disable-next-line react-refresh/only-export-components
 export function getProductsTitle(category) {
   if (!category) return "All Products";
-  return `${getCategoryDisplayName(category)} Products`;
+  return getCategoryDisplayName(category);
 }

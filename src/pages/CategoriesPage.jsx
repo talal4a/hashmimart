@@ -499,36 +499,19 @@ export default function CategoriesPage() {
           })}
 
           <Link
-            to="/products"
-            className={`category-card animate-slide-up stagger-${(categories.length % 8) + 1}`}
-          >
-            <div className="category-card-icon cat-icon-categories">
-              <IconCategories />
-            </div>
-            <div className="category-card-content">
-              <h3>All Products</h3>
-              <p>Browse every product across all categories</p>
-              <div className="category-badge">Browse All</div>
-            </div>
-            <span className="category-card-arrow" aria-hidden="true">
-              →
-            </span>
-          </Link>
-
-          <Link
             ref={directOrderRef}
             to={
               isAuthenticated && !isStaff
                 ? "/direct-order"
                 : "/login?redirect=%2Fdirect-order"
             }
-            className={`category-card animate-slide-up stagger-${((categories.length + 1) % 8) + 1}`}
+            className={`category-card animate-slide-up stagger-${(categories.length % 8) + 1}`}
           >
             <div className="category-card-icon cat-icon-direct">
               <IconDirectOrder />
             </div>
             <div className="category-card-content">
-              <h3>Direct Order</h3>
+              <h3>Voice Order</h3>
               <p>Speak or type your list — we&apos;ll write it down for you</p>
               <div className="category-badge">Voice to Text</div>
             </div>
@@ -673,7 +656,7 @@ export default function CategoriesPage() {
                     dismissSpotlight(true);
                   }}
                   role="button"
-                  aria-label="Open Direct Order"
+                  aria-label="Open Voice Order"
                   tabIndex={-1}
                 />
                 <div
@@ -691,7 +674,7 @@ export default function CategoriesPage() {
                   }
                   role="dialog"
                   aria-modal="true"
-                  aria-label="Welcome tip about Direct Order"
+                  aria-label="Welcome tip about Voice Order"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <span className="spotlight-tooltip-emoji" aria-hidden="true">

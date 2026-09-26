@@ -158,7 +158,7 @@ export default function Header({ title, showBack = false, backTo = "/" }) {
                   className="profile-dropdown-item"
                   onClick={() => setProfileDropdownOpen(false)}
                 >
-                  Direct Orders
+                  Voice Order
                 </Link>
                 <Link
                   to="/privacy-policy"

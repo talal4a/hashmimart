@@ -130,7 +130,7 @@ function AppRoutes() {
           </Layout>
         }
       />
-      <Route path="/products" element={<ProductsRoute />} />
+      <Route path="/products" element={<Navigate to="/products/retail" replace />} />
       <Route path="/products/:category" element={<ProductsRoute />} />
       <Route path="/category/:categoryId" element={<CategoryRoute />} />
       <Route
@@ -231,7 +231,7 @@ function AppRoutes() {
         path="/direct-order"
         element={
           <ProtectedRoute>
-            <Layout title="Direct Order" showBack backTo="/">
+            <Layout title="Voice Order" showBack backTo="/">
               <DirectOrderPage />
             </Layout>
           </ProtectedRoute>

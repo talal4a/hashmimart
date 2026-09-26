@@ -343,7 +343,7 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
         <div className="admin-order__section">
           <h4 className="admin-order__section-title">
             {order.orderText
-              ? "📝 Direct Order List"
+              ? "🎙 Voice Order List"
               : order.isVoiceOrder
                 ? "🎙 Voice Request"
                 : "📦 Products"}
@@ -904,7 +904,7 @@ function DeliveryFeeForm({ settings, onSave, showToast }) {
             Delivery fees
           </h2>
           <p className="settings-card__desc">
-            Charged on every cart order at checkout. Direct Orders are priced
+            Charged on every cart order at checkout. Voice Orders are priced
             by your team.
           </p>
         </div>
