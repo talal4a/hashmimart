@@ -1,22 +1,44 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { formatPrice } from "../data/products";
 import {
-  FREE_DELIVERY_THRESHOLD,
-  getDeliveryCharge,
+  computeOrderTotals,
+  describeDiscount,
+  getDiscountRemaining,
   getFreeDeliveryRemaining,
+  hasFreeDeliveryOffer,
+  hasOrderDiscount,
   isFreeDelivery,
-} from "../lib/delivery";
+} from "../lib/pricing";
 import { useStore } from "../context/StoreContext";
 import QuantityControl from "../components/QuantityControl";
 import { IconTrash } from "../components/Icons";
 
 export default function CartPage() {
-  const { cart, cartTotal, updateCartQuantity, removeFromCart } = useStore();
+  const {
+    cart,
+    cartTotal,
+    updateCartQuantity,
+    removeFromCart,
+    storeSettings,
+    refreshStoreSettings,
+  } = useStore();
 
-  const deliveryCharge = getDeliveryCharge(cartTotal);
-  const orderTotal = cartTotal + deliveryCharge;
-  const freeDeliveryUnlocked = isFreeDelivery(cartTotal);
-  const freeDeliveryRemaining = getFreeDeliveryRemaining(cartTotal);
+  // Pick up any fee/discount change the admin made since the app loaded.
+  useEffect(() => {
+    refreshStoreSettings();
+  }, [refreshStoreSettings]);
+
+  const { discount, deliveryCharge, total: orderTotal } = computeOrderTotals(
+    cartTotal,
+    storeSettings,
+  );
+  const freeDeliveryUnlocked = isFreeDelivery(cartTotal, storeSettings);
+  const freeDeliveryRemaining = getFreeDeliveryRemaining(
+    cartTotal,
+    storeSettings,
+  );
+  const discountRemaining = getDiscountRemaining(cartTotal, storeSettings);
 
   if (cart.length === 0) {
     return (
@@ -63,9 +85,6 @@ export default function CartPage() {
                     formatPrice(item.price)
                   )}{" "}
                   / {item.unit}
-                  {item.category === "wholesale" && (
-                    <span className="tag tag-wholesale">Wholesale</span>
-                  )}
                 </p>
               </div>
             </div>
@@ -104,20 +123,38 @@ export default function CartPage() {
           <span>Subtotal</span>
           <strong>{formatPrice(cartTotal)}</strong>
         </div>
+        {discount > 0 && (
+          <div className="cart-summary-row cart-summary-row-discount">
+            <span>Discount ({describeDiscount(storeSettings)})</span>
+            <strong>−{formatPrice(discount)}</strong>
+          </div>
+        )}
         <div className="cart-summary-row cart-summary-row-muted">
           <span>Delivery</span>
           {freeDeliveryUnlocked ? (
             <span className="cart-summary-free">
-              <s>Rs 50</s> <span className="checkout-gold-text">FREE</span>
+              {storeSettings.deliveryFee > 0 && (
+                <>
+                  <s>{formatPrice(storeSettings.deliveryFee)}</s>{" "}
+                </>
+              )}
+              <span className="checkout-gold-text">FREE</span>
             </span>
           ) : (
             <span>{formatPrice(deliveryCharge)}</span>
           )}
         </div>
-        {!freeDeliveryUnlocked && (
+        {hasOrderDiscount(storeSettings) && discountRemaining > 0 && (
+          <p className="cart-summary-free-nudge cart-summary-discount-nudge">
+            🏷️ Add {formatPrice(discountRemaining)} more to get{" "}
+            {describeDiscount(storeSettings)} your order!
+          </p>
+        )}
+        {hasFreeDeliveryOffer(storeSettings) && !freeDeliveryUnlocked && (
           <p className="cart-summary-free-nudge checkout-gold-text">
             🚚 Add {formatPrice(freeDeliveryRemaining)} more to get FREE
-            delivery on orders above {formatPrice(FREE_DELIVERY_THRESHOLD)}!
+            delivery on orders of{" "}
+            {formatPrice(storeSettings.freeDeliveryThreshold)} or more!
           </p>
         )}
         <div className="cart-summary-row cart-summary-row-total">

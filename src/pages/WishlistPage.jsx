@@ -23,10 +23,6 @@ export default function WishlistPage() {
       <ul className="wishlist-list">
         {wishlist.map((item) => {
           const product = getProductById(item.productId);
-          const defaultQty =
-            product?.category === "wholesale"
-              ? (product.wholesaleOptions?.[0] ?? 1)
-              : 1;
 
           return (
             <li key={item.productId} className="wishlist-item">
@@ -64,7 +60,7 @@ export default function WishlistPage() {
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  onClick={() => product && addToCart(product, defaultQty)}
+                  onClick={() => product && addToCart(product, 1)}
                 >
                   Add to Cart
                 </button>

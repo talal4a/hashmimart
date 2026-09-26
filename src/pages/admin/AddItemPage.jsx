@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { IconBack, IconEye } from "../../components/Icons";
 import { uploadProductImage, validateImageFile } from "../../lib/uploadImage";
+import { getCategoryTree } from "../../lib/categories";
 
 export default function AddItemPage({
   product,
@@ -13,7 +14,9 @@ export default function AddItemPage({
   // Form state - initialize from product when editing
   const [formData, setFormData] = useState(() => ({
     name: product?.name || "",
-    category: product?.category || "retail",
+    // Retail is the only shopping mode now. Saving a product that was filed
+    // under wholesale moves it to retail, which puts it back in the shop.
+    category: "retail",
     productCategory: product?.productCategory || "",
     price: product?.price || "",
     stock: product?.stock || 0,
@@ -178,24 +181,11 @@ export default function AddItemPage({
                   className="add-item-select"
                 >
                   <option value="">Select category</option>
-                  {productCategories?.map((cat) => (
+                  {getCategoryTree(productCategories || []).map((cat) => (
                     <option key={cat.id} value={cat.name}>
-                      {cat.name}
+                      {cat.depth > 0 ? `\u00A0\u00A0↳ ${cat.name}` : cat.name}
                     </option>
                   ))}
-                </select>
-              </div>
-
-              <div className="add-item-field">
-                <label className="add-item-label">Shopping Mode</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="add-item-select"
-                >
-                  <option value="retail">Retail</option>
-                  <option value="wholesale">Wholesale</option>
                 </select>
               </div>
 
@@ -439,7 +429,7 @@ export default function AddItemPage({
                 {formData.name || "Product name"}
               </h3>
               <p className="add-item-preview-category">
-                {formData.category || "No category"}
+                {formData.productCategory || "No category"}
               </p>
               <div className="add-item-preview-price-row">
                 <span className="add-item-preview-price">

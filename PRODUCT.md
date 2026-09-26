@@ -8,23 +8,23 @@ web
 
 ## Users
 
-Primary users are household shoppers in Lahore buying groceries for their home. They shop frequently (daily/weekly), want groceries delivered fast, and value convenience. Secondary audiences: wholesale/business buyers served by the retail+wholesale product range, and the store's own staff (superadmin/ordermanager roles) who operate the admin dashboard.
+Primary users are household shoppers in Lahore buying groceries for their home. They shop frequently (daily/weekly), want groceries delivered fast, and value convenience. Secondary audience: the store's own staff (superadmin/ordermanager roles) who operate the admin dashboard.
 
 ## Product Purpose
 
-Hashmi Mart is a grocery delivery app (PWA) that lets Lahore households shop retail or wholesale groceries and get them delivered fast. Success means an order placed in seconds, an order that arrives the same day, and a customer who comes back every week.
+Hashmi Mart is a grocery delivery app (PWA) that lets Lahore households shop groceries by category (or just say what they need) and get them delivered fast. Success means an order placed in seconds, an order that arrives the same day, and a customer who comes back every week.
 
 ## Positioning
 
-Voice & direct ordering is the differentiator: a customer can tell the app what they need (voice note or a quick direct order form) without browsing — a mechanism a neighboring grocery app could not truthfully copy. Premium fresh quality and fast delivery reinforce it.
+Voice & direct ordering is the differentiator: a customer can tell the app what they need (spoken and turned into editable text, or typed) without browsing — a mechanism a neighboring grocery app could not truthfully copy. Premium fresh quality and fast delivery reinforce it.
 
 ## Operating Context
 
-- Customers browse categories (Retail / Wholesale), search products, add to cart, and check out with delivery address + society selection.
-- Direct Order flow: customer describes what they need without browsing; voice orders let them send a recorded note which staff listens to and fulfills.
+- Customers open Retail, pick a category (each category page shows its subcategories along the top), search products, add to cart, and check out with delivery address + society selection. Wholesale has been retired.
+- Direct Order flow: customer speaks (Urdu/English) or types what they need; speech is transcribed to editable English text, and staff price and fulfil the written list.
 - Order lifecycle: pending → confirmed → delivered / cancelled; customers track status, get notifications.
 - Support: customers reach an AI support chat; staff handle chat and orders from the admin dashboard.
-- Staff roles: superadmin (all sections), ordermanager (orders only). Admin sections: Orders, Products, Product Categories, Discounts, Societies, Wishlist.
+- Staff roles: superadmin (all sections), ordermanager (orders only). Admin sections: Orders, Products, Product Categories (with subcategories), Discounts (per-product + store-wide order discount), Delivery Fees, Societies, Wishlist.
 - Currency is Pakistani Rupees (Rs.); locale formatting uses en-PK.
 
 ## Capabilities and Constraints
@@ -45,7 +45,7 @@ Voice & direct ordering is the differentiator: a customer can tell the app what 
 
 ## Evidence on Hand
 
-- Real seed catalog (retail + wholesale products) in `seed_data.sql` and `src/data/products.js`.
+- Real seed catalog in `seed_data.sql` and `src/data/products.js` (the SQL seed still contains retired wholesale rows, which the app hides).
 - Real order/chat/support data model in `supabase_complete_schema.sql`.
 - PWA + TWA assets already generated (`public/` icons, manifest, assetlinks).
 - No testimonials, press, or customer benchmarks exist in the repo — future work must not fabricate them.

@@ -10,14 +10,25 @@ import { supabase } from "../lib/supabase";
 import { isStaff as roleIsStaff } from "../lib/permissions";
 import { INITIAL_PRODUCTS } from "../data/products";
 import {
+  isRetiredMode,
   loadCategories as loadLocalCategories,
   saveCategories as saveLocalCategories,
 } from "../data/categoryStore";
-import { getDeliveryCharge } from "../lib/delivery";
+import {
+  DEFAULT_STORE_SETTINGS,
+  computeOrderTotals,
+  settingsFromRow,
+  settingsToRow,
+} from "../lib/pricing";
+import { normalizeCategoryParents } from "../lib/categories";
 
 const CART_KEY = "hashmi-network-cart";
 const SESSION_KEY = "hashmi-session";
 const PRODUCTS_KEY = "hashmi-network-products";
+const PRODUCT_CATS_KEY = "hashmi-network-product-cats";
+const SETTINGS_KEY = "hashmi-store-settings";
+// sessionStorage: survives a refresh on checkout, gone when the app closes.
+const DIRECT_ORDER_KEY = "hashmi-direct-order-text";
 // Feature flag, not yet wired to a reader. Kept deliberately so the
 // retention work has a single switch to turn on.
 // eslint-disable-next-line no-unused-vars
@@ -28,12 +39,56 @@ const StoreContext = createContext(null);
 function loadCart() {
   try {
     const raw = localStorage.getItem(CART_KEY);
-    if (raw) return JSON.parse(raw);
+    // Carts saved before wholesale was retired may still hold its items.
+    if (raw) return JSON.parse(raw).filter((i) => !isRetiredMode(i.category));
   } catch {
     // localStorage data may be absent or corrupted
   }
   return [];
 }
+
+function loadJson(storage, key, fallback) {
+  try {
+    const raw = storage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // storage may be unavailable, or the data absent or corrupted
+  }
+  return fallback;
+}
+
+function saveJson(storage, key, value) {
+  try {
+    storage.setItem(key, JSON.stringify(value));
+  } catch {
+    // storage full or unavailable — the in-memory state still works
+  }
+}
+
+function persistCategories(categories) {
+  saveJson(localStorage, PRODUCT_CATS_KEY, categories);
+  return categories;
+}
+
+function loadDirectOrderText() {
+  try {
+    return sessionStorage.getItem(DIRECT_ORDER_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+// A column or table the database doesn't have yet (migration not run):
+// PostgREST says PGRST204 / PGRST205, Postgres itself 42703 / 42P01.
+function isMissingColumn(error) {
+  return error?.code === "PGRST204" || error?.code === "42703";
+}
+
+function isMissingTable(error) {
+  return error?.code === "PGRST205" || error?.code === "42P01";
+}
+
+const MIGRATION_FILE = "supabase/store-settings-text-orders-subcategories.sql";
 
 function saveCart(cart) {
   localStorage.setItem(CART_KEY, JSON.stringify(cart));
@@ -92,6 +147,7 @@ function flattenProduct(p) {
     name: p.name,
     category: p.shopping_mode?.slug,
     productCategory: p.product_category?.name,
+    productCategoryId: p.product_category_id ?? null,
     price: Number(p.price),
     salePrice: p.sale_price != null ? Number(p.sale_price) : null,
     unit: p.unit,
@@ -99,7 +155,59 @@ function flattenProduct(p) {
     imageUrl: p.image_url,
     description: p.description,
     inStock: p.in_stock,
-    wholesaleOptions: p.wholesale_options || undefined,
+  };
+}
+
+function mapCategoryRow(c) {
+  return {
+    id: c.id,
+    name: c.name,
+    parentId: c.parent_id ?? null,
+    createdAt: c.created_at,
+  };
+}
+
+// Shared by loadOrders and loadRecentOrders. The price-breakdown columns and
+// order_text come from the store-settings migration; on a database without it
+// they are simply absent and read as null.
+function mapOrderRow(o, items) {
+  const numOrNull = (v) => (v == null ? null : Number(v));
+  return {
+    id: o.display_id,
+    dbId: o.id,
+    userId: o.user_id,
+    status: o.status,
+    createdAt: o.created_at,
+    customer: {
+      fullName: o.customer_name,
+      phone: o.customer_phone,
+      society: o.customer_society,
+      address: o.customer_address,
+    },
+    items,
+    total: Number(o.total),
+    subtotal: numOrNull(o.subtotal),
+    deliveryCharge: numOrNull(o.delivery_charge),
+    discountAmount: numOrNull(o.discount_amount),
+    paymentMethod: o.payment_method,
+    estimatedDelivery: o.estimated_delivery_minutes,
+    isVoiceOrder: o.is_voice_order || false,
+    audioUrl: o.audio_url || null,
+    orderText: o.order_text || null,
+  };
+}
+
+function mapOrderItemRow(item) {
+  return {
+    productId: item.product_id,
+    name: item.product_name,
+    price: Number(item.product_price),
+    unit: item.product_unit,
+    image: item.product_image,
+    imageUrl: item.product_image_url,
+    category: item.shopping_mode,
+    productCategory: item.product_category,
+    quantity: item.quantity,
   };
 }
 
@@ -110,10 +218,20 @@ export function StoreProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [products, setProducts] = useState(loadLocalProducts);
   const [categories, setCategories] = useState(loadLocalCategories);
-  const [productCategories, setProductCategories] = useState([]);
+  const [productCategories, setProductCategories] = useState(() =>
+    loadJson(localStorage, PRODUCT_CATS_KEY, []),
+  );
+  const [productCategoriesLoading, setProductCategoriesLoading] = useState(
+    () => loadJson(localStorage, PRODUCT_CATS_KEY, []).length === 0,
+  );
   const [societies, setSocieties] = useState([]);
-  const [voiceOrderAudio, setVoiceOrderAudio] = useState(null);
-  const [voiceOrderAddress, setVoiceOrderAddress] = useState("");
+  // Direct Order list (voice → text or typed), carried to checkout.
+  const [directOrderText, setDirectOrderTextState] =
+    useState(loadDirectOrderText);
+  const [storeSettings, setStoreSettings] = useState(() => ({
+    ...DEFAULT_STORE_SETTINGS,
+    ...loadJson(localStorage, SETTINGS_KEY, {}),
+  }));
   const [toast, setToast] = useState(null);
   // Loading flags drive skeleton states. Seed products from cache presence so
   // returning users (who already have local data) skip the skeleton flash.
@@ -212,7 +330,9 @@ export function StoreProvider({ children }) {
         const data = res?.data ?? null;
         if (cancelled) return;
         if (data && data.length > 0) {
-          const mapped = data.map((m) => ({ id: m.id, name: m.slug }));
+          const mapped = data
+            .map((m) => ({ id: m.id, name: m.slug }))
+            .filter((m) => !isRetiredMode(m.name));
           setCategories(mapped);
           saveLocalCategories(mapped);
           modeIdBySlug = Object.fromEntries(data.map((m) => [m.slug, m.id]));
@@ -223,15 +343,35 @@ export function StoreProvider({ children }) {
     }
 
     async function loadProductCats() {
-      const { data } = await supabase
-        .from("product_categories")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (cancelled) return;
-      if (data) {
-        setProductCategories(data.map((c) => ({ id: c.id, name: c.name })));
-        catIdByName = Object.fromEntries(data.map((c) => [c.name, c.id]));
+      try {
+        const { data } = await supabase
+          .from("product_categories")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (cancelled) return;
+        if (data) {
+          const mapped = normalizeCategoryParents(data.map(mapCategoryRow));
+          setProductCategories(mapped);
+          saveJson(localStorage, PRODUCT_CATS_KEY, mapped);
+          catIdByName = Object.fromEntries(data.map((c) => [c.name, c.id]));
+        }
+      } finally {
+        if (!cancelled) setProductCategoriesLoading(false);
       }
+    }
+
+    async function loadSettings() {
+      const { data, error } = await supabase
+        .from("store_settings")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+      if (cancelled) return;
+      // No table yet (migration not run) → keep the defaults.
+      if (error || !data) return;
+      const next = settingsFromRow(data);
+      setStoreSettings(next);
+      saveJson(localStorage, SETTINGS_KEY, next);
     }
 
     async function loadSocieties() {
@@ -267,20 +407,22 @@ export function StoreProvider({ children }) {
             )
             .in("id", ids);
           if (wishProducts) {
-            const wishlistData = wishProducts.map((p) => {
-              const f = flattenProduct(p);
-              return {
-                productId: f.id,
-                name: f.name,
-                price: f.price,
-                salePrice: f.salePrice,
-                unit: f.unit,
-                image: f.image,
-                imageUrl: f.imageUrl,
-                category: f.category,
-                productCategory: f.productCategory,
-              };
-            });
+            const wishlistData = wishProducts
+              .filter((p) => !isRetiredMode(p.shopping_mode?.slug))
+              .map((p) => {
+                const f = flattenProduct(p);
+                return {
+                  productId: f.id,
+                  name: f.name,
+                  price: f.price,
+                  salePrice: f.salePrice,
+                  unit: f.unit,
+                  image: f.image,
+                  imageUrl: f.imageUrl,
+                  category: f.category,
+                  productCategory: f.productCategory,
+                };
+              });
             setWishlist(wishlistData);
             // Save to localStorage as backup
             localStorage.setItem(
@@ -342,38 +484,10 @@ export function StoreProvider({ children }) {
         const itemsByOrder = {};
         for (const item of itemsData || []) {
           if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
-          itemsByOrder[item.order_id].push({
-            productId: item.product_id,
-            name: item.product_name,
-            price: Number(item.product_price),
-            unit: item.product_unit,
-            image: item.product_image,
-            imageUrl: item.product_image_url,
-            category: item.shopping_mode,
-            productCategory: item.product_category,
-            quantity: item.quantity,
-          });
+          itemsByOrder[item.order_id].push(mapOrderItemRow(item));
         }
         setOrders(
-          ordersData.map((o) => ({
-            id: o.display_id,
-            dbId: o.id,
-            userId: o.user_id,
-            status: o.status,
-            createdAt: o.created_at,
-            customer: {
-              fullName: o.customer_name,
-              phone: o.customer_phone,
-              society: o.customer_society,
-              address: o.customer_address,
-            },
-            items: itemsByOrder[o.id] || [],
-            total: Number(o.total),
-            paymentMethod: o.payment_method,
-            estimatedDelivery: o.estimated_delivery_minutes,
-            isVoiceOrder: o.is_voice_order || false,
-            audioUrl: o.audio_url || null,
-          })),
+          ordersData.map((o) => mapOrderRow(o, itemsByOrder[o.id] || [])),
         );
       } finally {
         if (!cancelled) setOrdersLoading(false);
@@ -405,6 +519,7 @@ export function StoreProvider({ children }) {
     loadProducts();
     loadModes();
     loadProductCats();
+    loadSettings();
     loadSocieties();
     loadWishlist();
     loadOrders();
@@ -583,14 +698,28 @@ export function StoreProvider({ children }) {
     [wishlist],
   );
 
+  // ---- Direct Order text (voice → text, or typed) ----
+  const setDirectOrderText = useCallback((text) => {
+    setDirectOrderTextState(text);
+    try {
+      if (text) sessionStorage.setItem(DIRECT_ORDER_KEY, text);
+      else sessionStorage.removeItem(DIRECT_ORDER_KEY);
+    } catch {
+      // sessionStorage unavailable — the in-memory copy still reaches checkout
+    }
+  }, []);
+
   // ---- Orders (Supabase orders + order_items) ----
+  // A normal order is priced from the cart with the admin's delivery fee and
+  // store discount. A Direct Order (`orderText`) carries the customer's list
+  // instead of line items; staff price it afterwards, so its total starts at 0.
   const placeOrder = useCallback(
-    async (
-      customerInfo,
-      { isVoiceOrder = false, voiceAudioBlob = null } = {},
-    ) => {
+    async (customerInfo, { orderText = null } = {}) => {
       const displayId = createOrderId();
-      const subtotal = isVoiceOrder
+      const listText = orderText?.trim() || null;
+      const isTextOrder = Boolean(listText);
+
+      const subtotal = isTextOrder
         ? 0
         : cart.reduce((sum, item) => {
             const finalPrice =
@@ -599,42 +728,17 @@ export function StoreProvider({ children }) {
                 : item.price;
             return sum + finalPrice * item.quantity;
           }, 0);
-      // Rs 50 flat delivery, waived on orders of Rs 500+ (see lib/delivery).
-      // Voice orders are priced by the team later, so no charge is applied.
-      const deliveryCharge = isVoiceOrder ? 0 : getDeliveryCharge(subtotal);
-      const orderTotal = subtotal + deliveryCharge;
+      const totals = isTextOrder
+        ? null
+        : computeOrderTotals(subtotal, storeSettings);
+      const orderTotal = totals ? totals.total : 0;
 
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Please log in before placing an order.");
 
-      let audioUrl = null;
-      if (isVoiceOrder && voiceAudioBlob) {
-        // Order notes are kept at the bucket root. The 'search/' prefix in this
-        // same bucket is disposable and gets deleted by /api/voice-search —
-        // never store an order recording under it.
-        const fileName = `${crypto.randomUUID()}.webm`;
-        const { error: uploadError } = await supabase.storage
-          .from("voice-notes")
-          .upload(fileName, voiceAudioBlob, {
-            contentType: "audio/webm",
-            cacheControl: "3600",
-          });
-
-        if (uploadError) {
-          console.error("Failed to upload voice note", uploadError);
-          throw new Error("Failed to upload voice note.");
-        }
-
-        const { data: publicUrlData } = supabase.storage
-          .from("voice-notes")
-          .getPublicUrl(fileName);
-
-        audioUrl = publicUrlData?.publicUrl || null;
-      }
-
-      const orderPayload = {
+      const basePayload = {
         display_id: displayId,
         customer_name: customerInfo.fullName,
         customer_phone: customerInfo.phone,
@@ -645,22 +749,48 @@ export function StoreProvider({ children }) {
         customer_address: customerInfo.address || null,
         total: orderTotal,
         payment_method: customerInfo.paymentMethod || "Cash on Delivery",
-        is_voice_order: isVoiceOrder,
-        audio_url: audioUrl,
+        is_voice_order: false,
       };
+      const extraPayload = isTextOrder
+        ? { order_text: listText }
+        : {
+            subtotal: totals.subtotal,
+            discount_amount: totals.discount,
+            delivery_charge: totals.deliveryCharge,
+          };
 
-      const { data: orderRow, error: orderError } = await supabase
+      let { data: orderRow, error: orderError } = await supabase
         .from("orders")
-        .insert(orderPayload)
+        .insert({ ...basePayload, ...extraPayload })
         .select()
         .single();
+
+      if (orderError && isMissingColumn(orderError)) {
+        console.error(
+          `placeOrder: orders table is missing new columns — run ${MIGRATION_FILE} in Supabase.`,
+          orderError,
+        );
+        // Without order_text there is nowhere to keep the customer's list, so
+        // a Direct Order can't be saved. A cart order only loses its stored
+        // price breakdown (the total is still correct), so retry without it.
+        if (isTextOrder) {
+          throw new Error(
+            "Direct Order is temporarily unavailable. Please add items to your cart instead, or try again later.",
+          );
+        }
+        ({ data: orderRow, error: orderError } = await supabase
+          .from("orders")
+          .insert(basePayload)
+          .select()
+          .single());
+      }
 
       if (orderError) {
         console.error("placeOrder: failed to create order", orderError);
         throw new Error(orderError.message);
       }
 
-      if (!isVoiceOrder) {
+      if (!isTextOrder) {
         const orderItems = cart.map((item) => ({
           order_id: orderRow.id,
           product_id: item.productId,
@@ -698,7 +828,9 @@ export function StoreProvider({ children }) {
         .insert({
           order_id: orderRow.id,
           audience: "staff",
-          message: `New order #${displayId} from ${customerInfo.fullName} — Rs ${orderTotal}`,
+          message: isTextOrder
+            ? `New Direct Order #${displayId} from ${customerInfo.fullName} — list to price`
+            : `New order #${displayId} from ${customerInfo.fullName} — Rs ${orderTotal}`,
           is_read: false,
         });
       if (staffNotifErr) {
@@ -712,27 +844,29 @@ export function StoreProvider({ children }) {
         status: "pending",
         createdAt: orderRow.created_at,
         customer: customerInfo,
-        items: isVoiceOrder ? [] : cart.map((item) => ({ ...item })),
+        items: isTextOrder ? [] : cart.map((item) => ({ ...item })),
         total: orderTotal,
-        deliveryCharge,
+        subtotal: totals ? totals.subtotal : null,
+        deliveryCharge: totals ? totals.deliveryCharge : null,
+        discountAmount: totals ? totals.discount : null,
         paymentMethod: customerInfo.paymentMethod || "Cash on Delivery",
         estimatedDelivery: null,
-        isVoiceOrder,
-        audioUrl,
+        isVoiceOrder: false,
+        audioUrl: null,
+        orderText: listText,
       };
 
       setOrders((prev) => [order, ...prev]);
-      if (!isVoiceOrder) {
+      if (isTextOrder) {
+        setDirectOrderText("");
+      } else {
         setCart([]);
         saveCart([]);
-      } else {
-        setVoiceOrderAudio(null);
-        setVoiceOrderAddress("");
       }
 
       return order;
     },
-    [cart],
+    [cart, storeSettings, setDirectOrderText],
   );
 
   const updateOrderStatus = useCallback(async (orderId, newStatus) => {
@@ -1028,37 +1162,9 @@ export function StoreProvider({ children }) {
       const itemsByOrder = {};
       for (const item of itemsData || []) {
         if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
-        itemsByOrder[item.order_id].push({
-          productId: item.product_id,
-          name: item.product_name,
-          price: Number(item.product_price),
-          unit: item.product_unit,
-          image: item.product_image,
-          imageUrl: item.product_image_url,
-          category: item.shopping_mode,
-          productCategory: item.product_category,
-          quantity: item.quantity,
-        });
+        itemsByOrder[item.order_id].push(mapOrderItemRow(item));
       }
-      return ordersData.map((o) => ({
-        id: o.display_id,
-        dbId: o.id,
-        userId: o.user_id,
-        status: o.status,
-        createdAt: o.created_at,
-        customer: {
-          fullName: o.customer_name,
-          phone: o.customer_phone,
-          society: o.customer_society,
-          address: o.customer_address,
-        },
-        items: itemsByOrder[o.id] || [],
-        total: Number(o.total),
-        paymentMethod: o.payment_method,
-        estimatedDelivery: o.estimated_delivery_minutes,
-        isVoiceOrder: o.is_voice_order || false,
-        audioUrl: o.audio_url || null,
-      }));
+      return ordersData.map((o) => mapOrderRow(o, itemsByOrder[o.id] || []));
     } catch (error) {
       console.error("loadRecentOrders failed", error);
       return [];
@@ -1066,14 +1172,23 @@ export function StoreProvider({ children }) {
   }, []);
 
   // ---- Product helpers ----
-  const getProductsByCategory = useCallback(
-    (category) => products.filter((p) => p.category === category && p.inStock),
+  // What customers can see. `products` keeps everything for the admin
+  // dashboard, including products filed under a retired shopping mode
+  // (wholesale), which the shop no longer offers.
+  const shopProducts = useMemo(
+    () => products.filter((p) => !isRetiredMode(p.category)),
     [products],
   );
 
+  const getProductsByCategory = useCallback(
+    (category) =>
+      shopProducts.filter((p) => p.category === category && p.inStock),
+    [shopProducts],
+  );
+
   const getProductById = useCallback(
-    (id) => products.find((p) => p.id === id),
-    [products],
+    (id) => shopProducts.find((p) => p.id === id),
+    [shopProducts],
   );
 
   // ---- Product CRUD (Supabase + localStorage fallback) ----
@@ -1137,9 +1252,6 @@ export function StoreProvider({ children }) {
     if (updates.image !== undefined) dbUpdates.image = updates.image;
     if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
     if (updates.inStock !== undefined) dbUpdates.in_stock = updates.inStock;
-    if (updates.wholesaleOptions !== undefined) {
-      dbUpdates.wholesale_options = updates.wholesaleOptions || null;
-    }
 
     // Always include shopping_mode_id if category is provided
     if (updates.category !== undefined) {
@@ -1185,8 +1297,12 @@ export function StoreProvider({ children }) {
       };
     }
 
+    const local =
+      dbUpdates.product_category_id !== undefined
+        ? { ...updates, productCategoryId: dbUpdates.product_category_id }
+        : updates;
     setProducts((prev) => {
-      const next = prev.map((p) => (p.id === id ? { ...p, ...updates } : p));
+      const next = prev.map((p) => (p.id === id ? { ...p, ...local } : p));
       saveLocalProducts(next);
       return next;
     });
@@ -1266,26 +1382,48 @@ export function StoreProvider({ children }) {
   );
 
   // ---- Product Category CRUD (Supabase) ----
+  // Two levels only: a subcategory's parent must be a main category, and a
+  // category that has subcategories can't itself become a subcategory.
+  const validateParent = useCallback(
+    (parentId, selfId = null) => {
+      if (!parentId) return null;
+      const parent = productCategories.find((c) => c.id === parentId);
+      if (!parent) return "Parent category not found";
+      if (parent.id === selfId) return "A category can't be its own parent";
+      if (parent.parentId) return "Subcategories can't have subcategories";
+      if (selfId && productCategories.some((c) => c.parentId === selfId)) {
+        return "This category has subcategories, so it must stay a main category";
+      }
+      return null;
+    },
+    [productCategories],
+  );
+
   const addProductCategory = useCallback(
-    async (name) => {
+    async (name, parentId = null) => {
       const trimmed = name.trim();
       if (!trimmed) return { error: "Category name cannot be empty" };
       const duplicate = productCategories.some(
         (c) => c.name.toLowerCase() === trimmed.toLowerCase(),
       );
       if (duplicate) return { error: "Category already exists" };
+      const parentError = validateParent(parentId);
+      if (parentError) return { error: parentError };
 
       const tempId = crypto.randomUUID();
       const tempCat = {
         id: tempId,
         name: trimmed,
+        parentId: parentId || null,
         createdAt: new Date().toISOString(),
       };
       setProductCategories((prev) => [...prev, tempCat]);
 
+      // parent_id is only sent for subcategories, so main categories keep
+      // working on a database that hasn't run the subcategory migration.
       const { data, error } = await supabase
         .from("product_categories")
-        .insert({ name: trimmed })
+        .insert(parentId ? { name: trimmed, parent_id: parentId } : { name: trimmed })
         .select()
         .single();
 
@@ -1294,6 +1432,11 @@ export function StoreProvider({ children }) {
         // Roll back the optimistic row. Keeping it would leave a category
         // with a fake UUID that products can't actually be filed under.
         setProductCategories((prev) => prev.filter((c) => c.id !== tempId));
+        if (isMissingColumn(error)) {
+          return {
+            error: `Subcategories need a database update — run ${MIGRATION_FILE} in Supabase.`,
+          };
+        }
         return { error: error.message || "Failed to save category" };
       }
 
@@ -1307,22 +1450,20 @@ export function StoreProvider({ children }) {
       }
 
       // Replace temp ID with real UUID
-      const dbCat = {
-        id: data.id,
-        name: data.name,
-        createdAt: data.created_at,
-      };
+      const dbCat = mapCategoryRow(data);
       setProductCategories((prev) =>
-        prev.map((c) => (c.id === tempId ? dbCat : c)),
+        persistCategories(prev.map((c) => (c.id === tempId ? dbCat : c))),
       );
       catIdByName = null;
       return { category: dbCat };
     },
-    [productCategories],
+    [productCategories, validateParent],
   );
 
+  // `parentId` is optional: undefined leaves the parent as it is, null makes
+  // the category a main category, an id moves it under that category.
   const editProductCategory = useCallback(
-    async (id, newName) => {
+    async (id, newName, parentId) => {
       const trimmed = newName.trim();
       if (!trimmed) return { error: "Category name cannot be empty" };
       const duplicate = productCategories.some(
@@ -1330,27 +1471,47 @@ export function StoreProvider({ children }) {
       );
       if (duplicate) return { error: "Category already exists" };
 
-      const oldName = productCategories.find((c) => c.id === id)?.name;
-      if (!oldName) return { error: "Category not found" };
+      const old = productCategories.find((c) => c.id === id);
+      if (!old) return { error: "Category not found" };
+      const oldName = old.name;
+
+      const nextParent = parentId === undefined ? old.parentId : parentId || null;
+      const parentChanged = nextParent !== old.parentId;
+      if (parentChanged) {
+        const parentError = validateParent(nextParent, id);
+        if (parentError) return { error: parentError };
+      }
 
       setProductCategories((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, name: trimmed } : c)),
+        prev.map((c) =>
+          c.id === id ? { ...c, name: trimmed, parentId: nextParent } : c,
+        ),
       );
       catIdByName = null;
 
       const { error } = await supabase
         .from("product_categories")
-        .update({ name: trimmed })
+        .update(
+          parentChanged
+            ? { name: trimmed, parent_id: nextParent }
+            : { name: trimmed },
+        )
         .eq("id", id);
 
       if (error) {
         console.error("Supabase update category failed:", error);
         setProductCategories((prev) =>
-          prev.map((c) => (c.id === id ? { ...c, name: oldName } : c)),
+          prev.map((c) => (c.id === id ? old : c)),
         );
+        if (isMissingColumn(error)) {
+          return {
+            error: `Subcategories need a database update — run ${MIGRATION_FILE} in Supabase.`,
+          };
+        }
         return { error: error.message };
       }
 
+      setProductCategories((prev) => persistCategories(prev));
       setProducts((prev) => {
         const next = prev.map((p) =>
           p.productCategory === oldName
@@ -1363,7 +1524,7 @@ export function StoreProvider({ children }) {
 
       return {};
     },
-    [productCategories],
+    [productCategories, validateParent],
   );
 
   const deleteProductCategory = useCallback(
@@ -1372,6 +1533,10 @@ export function StoreProvider({ children }) {
       if (!cat) return {};
       const hasProducts = products.some((p) => p.productCategory === cat.name);
       if (hasProducts) return { error: "Cannot delete: category has products" };
+      const hasSubcategories = productCategories.some((c) => c.parentId === id);
+      if (hasSubcategories) {
+        return { error: "Cannot delete: delete or move its subcategories first" };
+      }
 
       setProductCategories((prev) => prev.filter((c) => c.id !== id));
       catIdByName = null;
@@ -1387,9 +1552,58 @@ export function StoreProvider({ children }) {
         return { error: error.message };
       }
 
+      setProductCategories((prev) => persistCategories(prev));
       return {};
     },
     [productCategories, products],
+  );
+
+  // ---- Store settings: delivery fee + store-wide discount (admin) ----
+  const refreshStoreSettings = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("store_settings")
+      .select("*")
+      .eq("id", 1)
+      .maybeSingle();
+    if (error || !data) return;
+    const next = settingsFromRow(data);
+    setStoreSettings(next);
+    saveJson(localStorage, SETTINGS_KEY, next);
+  }, []);
+
+  const updateStoreSettings = useCallback(
+    async (changes) => {
+      const next = { ...storeSettings, ...changes };
+      // .select() makes an RLS-blocked update detectable: it is not an
+      // error, it just matches no row.
+      const { data, error } = await supabase
+        .from("store_settings")
+        .update({ ...settingsToRow(next), updated_at: new Date().toISOString() })
+        .eq("id", 1)
+        .select();
+
+      if (error) {
+        console.error("updateStoreSettings failed", error);
+        if (isMissingTable(error) || isMissingColumn(error)) {
+          return {
+            error: `Store settings need a database update — run ${MIGRATION_FILE} in Supabase.`,
+          };
+        }
+        return { error: error.message || "Failed to save settings" };
+      }
+      if (!data || data.length === 0) {
+        return {
+          error:
+            "The database rejected this change. Only a superadmin can change prices — or run the migration to create the settings row.",
+        };
+      }
+
+      const saved = settingsFromRow(data[0]);
+      setStoreSettings(saved);
+      saveJson(localStorage, SETTINGS_KEY, saved);
+      return { settings: saved };
+    },
+    [storeSettings],
   );
 
   // ---- Society CRUD (Supabase) ----
@@ -1535,18 +1749,21 @@ export function StoreProvider({ children }) {
       orders,
       notifications,
       products,
+      shopProducts,
       categories,
       productCategories,
+      productCategoriesLoading,
       productsLoading,
       ordersLoading,
       notifsLoading,
       cartCount,
       cartTotal,
       unreadNotifications,
-      voiceOrderAudio,
-      setVoiceOrderAudio,
-      voiceOrderAddress,
-      setVoiceOrderAddress,
+      directOrderText,
+      setDirectOrderText,
+      storeSettings,
+      refreshStoreSettings,
+      updateStoreSettings,
       addToCart,
       updateCartQuantity,
       removeFromCart,
@@ -1584,18 +1801,21 @@ export function StoreProvider({ children }) {
       orders,
       notifications,
       products,
+      shopProducts,
       categories,
       productCategories,
+      productCategoriesLoading,
       productsLoading,
       ordersLoading,
       notifsLoading,
       cartCount,
       cartTotal,
       unreadNotifications,
-      voiceOrderAudio,
-      setVoiceOrderAudio,
-      voiceOrderAddress,
-      setVoiceOrderAddress,
+      directOrderText,
+      setDirectOrderText,
+      storeSettings,
+      refreshStoreSettings,
+      updateStoreSettings,
       toast,
       addToCart,
       updateCartQuantity,

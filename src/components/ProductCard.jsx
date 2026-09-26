@@ -8,9 +8,7 @@ import { IconHeart } from "./Icons";
 export default function ProductCard({ product }) {
   const { addToCart, toggleWishlist, isInWishlist } = useStore();
   const productId = product.productId || product.id;
-  const isWholesale = product.category === "wholesale";
-  const defaultQty = isWholesale ? (product.wholesaleOptions?.[0] ?? 1) : 1;
-  const [quantity, setQuantity] = useState(defaultQty);
+  const [quantity, setQuantity] = useState(1);
   const [imgError, setImgError] = useState(false);
   const wished = isInWishlist(productId);
 
@@ -102,27 +100,11 @@ export default function ProductCard({ product }) {
 
       <div className="product-card-actions">
         <div className="product-card-controls">
-          {isWholesale && product.wholesaleOptions ? (
-            <select
-              className="wholesale-select"
-              value={quantity}
-              onChange={(e) => {
-                setQuantity(Number(e.target.value));
-              }}
-            >
-              {product.wholesaleOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt} {product.unit}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <QuantityControl
-              value={quantity}
-              onChange={(q) => setQuantity(q)}
-              size="sm"
-            />
-          )}
+          <QuantityControl
+            value={quantity}
+            onChange={(q) => setQuantity(q)}
+            size="sm"
+          />
         </div>
 
         <button

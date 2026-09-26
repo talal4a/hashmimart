@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  IconPackage,
   IconStore,
   IconDelivery,
   IconBestPrice,
@@ -18,6 +17,12 @@ import {
   getCategoryDescription,
   getCategoryBadge,
 } from "../data/categoryStore";
+import {
+  describeDiscount,
+  hasFreeDeliveryOffer,
+  hasOrderDiscount,
+} from "../lib/pricing";
+import { formatPrice } from "../data/products";
 import AnimateOnScroll from "../components/AnimateOnScroll";
 import HeroSlider from "../components/HeroSlider";
 import Typewriter from "../components/Typewriter";
@@ -173,7 +178,6 @@ function Marquee() {
 
 function CategoryIcon({ name }) {
   if (name === "retail") return <IconStore />;
-  if (name === "wholesale") return <IconPackage />;
   return <IconCategories />;
 }
 
@@ -181,13 +185,12 @@ function CategoryIcon({ name }) {
    lightweight recipe as the feature pills (transform-only, small amplitude). */
 function categoryIconClass(name) {
   if (name === "retail") return "cat-icon-store";
-  if (name === "wholesale") return "cat-icon-package";
   return "cat-icon-categories";
 }
 
 export default function CategoriesPage() {
   const { isAuthenticated, isStaff } = useAuth();
-  const { categories, orders, products } = useStore();
+  const { categories, orders, shopProducts, storeSettings } = useStore();
   const [orderFilter, setOrderFilter] = useState("all");
   const heroRef = useRef(null);
   const gridRef = useRef(null);
@@ -385,7 +388,7 @@ export default function CategoriesPage() {
       ? orders.slice(0, 5)
       : orders.filter((order) => order.status === orderFilter);
 
-  const discountProducts = products.filter(
+  const discountProducts = shopProducts.filter(
     (product) => product.salePrice && product.salePrice < product.price,
   );
 
@@ -406,9 +409,34 @@ export default function CategoriesPage() {
             <Typewriter phrases={HERO_TITLE_PHRASES} />
           </h1>
           <p className="hero-subtitle">
-            Premium fresh groceries delivered fast in Lahore. Shop retail or
-            wholesale today!
-          </p>            <div className="hero-features">
+            Premium fresh groceries delivered fast in Lahore. Shop by category
+            or just tell us what you need!
+          </p>
+          {(hasOrderDiscount(storeSettings) ||
+            hasFreeDeliveryOffer(storeSettings) ||
+            storeSettings.deliveryFee <= 0) && (
+            <div className="hero-offers">
+              {hasOrderDiscount(storeSettings) && (
+                <span className="hero-offer hero-offer--discount">
+                  🏷️ {describeDiscount(storeSettings)}
+                  {storeSettings.discountMinOrder > 0
+                    ? ` on orders of ${formatPrice(storeSettings.discountMinOrder)}+`
+                    : " every order"}
+                </span>
+              )}
+              {storeSettings.deliveryFee <= 0 ? (
+                <span className="hero-offer">🚚 Free delivery on every order</span>
+              ) : (
+                hasFreeDeliveryOffer(storeSettings) && (
+                  <span className="hero-offer">
+                    🚚 Free delivery on{" "}
+                    {formatPrice(storeSettings.freeDeliveryThreshold)}+
+                  </span>
+                )
+              )}
+            </div>
+          )}
+          <div className="hero-features">
             <div className="hero-feature animate-slide-up stagger-1">
               <div className="hero-feature-icon feature-icon-truck">
                 <IconDelivery size={32} />
@@ -434,7 +462,7 @@ export default function CategoriesPage() {
               </div>
               <div>
                 <h3>Best Prices</h3>
-                <p>Competitive wholesale rates</p>
+                <p>Fair everyday prices</p>
               </div>
             </div>
           </div>
@@ -501,8 +529,8 @@ export default function CategoriesPage() {
             </div>
             <div className="category-card-content">
               <h3>Direct Order</h3>
-              <p>Quick order without browsing — tell us what you need</p>
-              <div className="category-badge">Express</div>
+              <p>Speak or type your list — we&apos;ll write it down for you</p>
+              <div className="category-badge">Voice to Text</div>
             </div>
             <span className="category-card-arrow" aria-hidden="true">
               →
@@ -672,7 +700,8 @@ export default function CategoriesPage() {
                   <div className="spotlight-tooltip-body">
                     <p className="spotlight-tooltip-title">New here?</p>
                     <p className="spotlight-tooltip-text">
-                      Place your order instantly without browsing.
+                      Just say what you need — we&apos;ll turn it into your
+                      order list.
                     </p>
                   </div>
                   <button

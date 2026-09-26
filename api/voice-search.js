@@ -148,7 +148,12 @@ export default async function handler(req, res) {
     let best = null
     let bestScore = 0
 
-    for (const p of products || []) {
+    // Wholesale is no longer sold; its rows may still be in the table.
+    const shopProducts = (products || []).filter(
+      (p) => p.shopping_mode?.slug !== 'wholesale',
+    )
+
+    for (const p of shopProducts) {
       const score = scoreProduct(p, tokens)
       if (score > bestScore) {
         best = p

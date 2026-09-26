@@ -5,6 +5,7 @@ import { useStore } from '../context/StoreContext'
 import { IconBack } from '../components/Icons'
 import ConfirmDialog from '../components/ConfirmDialog'
 import { SkeletonBlock } from '../components/Skeleton'
+import OrderPriceBreakdown from '../components/OrderPriceBreakdown'
 
 export default function MyOrderDetailPage() {
   const { orderId } = useParams()
@@ -124,7 +125,19 @@ export default function MyOrderDetailPage() {
       </div>
 
       <div className="order-detail-section">
-        {order.isVoiceOrder ? (
+        {order.orderText ? (
+          <>
+            <h3>📝 Your order list</h3>
+            <p className="order-text-block">{order.orderText}</p>
+            <p className="order-detail-muted">
+              Our team will check prices and confirm your total.
+            </p>
+            <div className="summary-total">
+              <span>Total</span>
+              <strong>{order.total > 0 ? formatPrice(order.total) : 'To be decided'}</strong>
+            </div>
+          </>
+        ) : order.isVoiceOrder ? (
           <>
             <h3>🎙 Voice Request</h3>
             <div className="admin-order__voice-box">
@@ -156,6 +169,7 @@ export default function MyOrderDetailPage() {
                 </li>
               ))}
             </ul>
+            <OrderPriceBreakdown order={order} />
             <div className="summary-total">
               <span>Total</span>
               <strong>{formatPrice(order.total)}</strong>

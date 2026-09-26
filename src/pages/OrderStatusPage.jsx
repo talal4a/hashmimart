@@ -3,6 +3,7 @@ import { formatPrice } from '../data/products'
 import { useStore } from '../context/StoreContext'
 import { IconCheck, IconX } from '../components/Icons'
 import { SkeletonBlock } from '../components/Skeleton'
+import OrderPriceBreakdown from '../components/OrderPriceBreakdown'
 
 const STATUS_CONFIG = {
   pending: {
@@ -82,21 +83,33 @@ export default function OrderStatusPage() {
           <p>{order.customer.address}</p>
         </div>
 
-        <div className="order-details">
-          <h3>Items</h3>
-          <ul className="summary-list">
-            {order.items.map((item) => (
-              <li key={item.productId}>
-                <span>{item.name} × {item.quantity}</span>
-                <span>{formatPrice(item.price * item.quantity)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="summary-total">
-            <span>Total (COD)</span>
-            <strong>{formatPrice(order.total)}</strong>
+        {order.orderText ? (
+          <div className="order-details">
+            <h3>Your order list</h3>
+            <p className="order-text-block">{order.orderText}</p>
+            <div className="summary-total">
+              <span>Total</span>
+              <strong>{order.total > 0 ? formatPrice(order.total) : 'To be decided'}</strong>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="order-details">
+            <h3>Items</h3>
+            <ul className="summary-list">
+              {order.items.map((item) => (
+                <li key={item.productId}>
+                  <span>{item.name} × {item.quantity}</span>
+                  <span>{formatPrice(item.price * item.quantity)}</span>
+                </li>
+              ))}
+            </ul>
+            <OrderPriceBreakdown order={order} />
+            <div className="summary-total">
+              <span>Total ({order.paymentMethod === 'JazzCash' ? 'JazzCash' : 'COD'})</span>
+              <strong>{formatPrice(order.total)}</strong>
+            </div>
+          </div>
+        )}
 
         <Link to="/" className="btn btn-secondary btn-block">Continue Shopping</Link>
       </div>

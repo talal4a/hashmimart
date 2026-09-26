@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 const MAX_DURATION = 120
 
-export default function useVoiceRecorder() {
+// `onStop(blob)` (optional) runs whenever a recording finishes — a manual
+// stop or the MAX_DURATION auto-stop — but not after cancelRecording.
+export default function useVoiceRecorder({ onStop } = {}) {
   const [state, setState] = useState('idle')
   const [duration, setDuration] = useState(0)
   const [error, setError] = useState(null)
@@ -11,6 +13,19 @@ export default function useVoiceRecorder() {
   const timerRef = useRef(null)
   const streamRef = useRef(null)
   const startTimeRef = useRef(null)
+  const stopResolversRef = useRef([])
+  const cancelledRef = useRef(false)
+  const onStopRef = useRef(onStop)
+
+  useEffect(() => {
+    onStopRef.current = onStop
+  }, [onStop])
+
+  const buildBlob = useCallback(() => {
+    if (chunksRef.current.length === 0) return null
+    const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm'
+    return new Blob(chunksRef.current, { type: mimeType })
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -21,22 +36,35 @@ export default function useVoiceRecorder() {
     }
   }, [])
 
+  // Resolves with the finished recording once the recorder has flushed its
+  // last chunk (the final dataavailable fires after stop(), so reading the
+  // blob synchronously can miss the tail). Callers that don't need the blob
+  // can ignore the returned promise.
   const stopRecording = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
-    }
+    const recorder = mediaRecorderRef.current
+    const done = new Promise((resolve) => {
+      if (recorder && recorder.state !== 'inactive') {
+        stopResolversRef.current.push(resolve)
+        recorder.stop()
+      } else {
+        resolve(buildBlob())
+      }
+    })
     setState('stopped')
-  }, [])
+    return done
+  }, [buildBlob])
 
   const cancelRecording = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
+    cancelledRef.current = true
+    stopResolversRef.current.splice(0).forEach((resolve) => resolve(null))
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop()
     }
@@ -67,6 +95,7 @@ export default function useVoiceRecorder() {
     setError(null)
     setDuration(0)
     chunksRef.current = []
+    cancelledRef.current = false
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
@@ -82,6 +111,10 @@ export default function useVoiceRecorder() {
           streamRef.current.getTracks().forEach((t) => t.stop())
           streamRef.current = null
         }
+        if (cancelledRef.current) return
+        const blob = buildBlob()
+        stopResolversRef.current.splice(0).forEach((resolve) => resolve(blob))
+        onStopRef.current?.(blob)
       }
 
       recorder.onerror = () => {
@@ -106,13 +139,9 @@ export default function useVoiceRecorder() {
       }
       setState('error')
     }
-  }, [])
+  }, [buildBlob])
 
-  const getBlob = useCallback(() => {
-    if (chunksRef.current.length === 0) return null
-    const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm'
-    return new Blob(chunksRef.current, { type: mimeType })
-  }, [])
+  const getBlob = buildBlob
 
   const formatDuration = useCallback((sec) => {
     const safe = Math.max(0, sec ?? 0)

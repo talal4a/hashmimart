@@ -111,9 +111,9 @@ export default function MyOrdersPage() {
                 </span>
               </div>
               <div className="my-order-card-bottom">
-                {order.isVoiceOrder ? (
+                {order.orderText || order.isVoiceOrder ? (
                   <>
-                    <span>🎙 Voice order</span>
+                    <span>{order.orderText ? '📝 Direct order' : '🎙 Voice order'}</span>
                     <span className="my-order-card-total">
                       {order.total > 0 ? formatPrice(order.total) : 'To be decided'}
                     </span>

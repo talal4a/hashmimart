@@ -1,29 +1,38 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { formatPrice } from "../data/products";
 import {
-  DELIVERY_CHARGE,
-  FREE_DELIVERY_THRESHOLD,
-  getDeliveryCharge,
+  computeOrderTotals,
+  describeDiscount,
+  getDiscountRemaining,
   getFreeDeliveryRemaining,
   getFreeDeliveryProgress,
+  hasFreeDeliveryOffer,
+  hasOrderDiscount,
   isFreeDelivery,
-} from "../lib/delivery";
+} from "../lib/pricing";
 import { useStore } from "../context/StoreContext";
 import { useAuth } from "../context/AuthContext";
 import Celebration from "../components/Celebration";
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     cart,
     cartTotal,
     placeOrder,
-    voiceOrderAudio,
-    voiceOrderAddress,
+    directOrderText,
     societies,
+    storeSettings,
+    refreshStoreSettings,
   } = useStore();
   const { profile, user } = useAuth();
+
+  // /checkout?mode=direct comes from the Direct Order page and sends the
+  // customer's typed/spoken list; plain /checkout sends the cart.
+  const wantsDirectOrder = searchParams.get("mode") === "direct";
+  const isDirectOrder = wantsDirectOrder && Boolean(directOrderText.trim());
 
   const [savedAddresses, setSavedAddresses] = useState(() => {
     try {
@@ -54,28 +63,48 @@ export default function CheckoutPage() {
       phone: profile?.phone || user?.user_metadata?.phone || "",
       email: user?.email || "",
       society: saved.length > 0 ? saved[0].society : "",
-      address: voiceOrderAddress || (saved.length > 0 ? saved[0].address : ""),
+      address: saved.length > 0 ? saved[0].address : "",
     };
   });
 
   const [paymentMethod, setPaymentMethod] = useState("Cash on Delivery");
 
-  /* Delivery is a flat Rs 50, waived on orders of Rs 500+ (the gold nudge
-     below). Voice orders are priced by the team later, so no charge applies. */
-  const deliveryCharge = voiceOrderAudio ? 0 : getDeliveryCharge(cartTotal);
-  const orderTotal = cartTotal + deliveryCharge;
-  const freeDeliveryUnlocked = isFreeDelivery(cartTotal);
-  const freeDeliveryRemaining = getFreeDeliveryRemaining(cartTotal);
-  const freeDeliveryProgress = getFreeDeliveryProgress(cartTotal);
+  /* Delivery fee, free-delivery threshold and the store-wide discount are set
+     by the admin (lib/pricing). A Direct Order is priced by the team after
+     they read the list, so none of it applies there. */
+  const {
+    discount,
+    deliveryCharge,
+    total: orderTotal,
+  } = computeOrderTotals(cartTotal, storeSettings);
+  const freeDeliveryOffer = hasFreeDeliveryOffer(storeSettings);
+  const freeDeliveryUnlocked = isFreeDelivery(cartTotal, storeSettings);
+  const freeDeliveryRemaining = getFreeDeliveryRemaining(
+    cartTotal,
+    storeSettings,
+  );
+  const freeDeliveryProgress = getFreeDeliveryProgress(
+    cartTotal,
+    storeSettings,
+  );
+  const discountRemaining = getDiscountRemaining(cartTotal, storeSettings);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  // Price with the admin's latest fee/discount, not whatever was cached.
   useEffect(() => {
-    if (cart.length === 0 && !voiceOrderAudio) navigate("/cart");
-  }, [cart.length, voiceOrderAudio, navigate]);
+    refreshStoreSettings();
+  }, [refreshStoreSettings]);
 
-  if (cart.length === 0 && !voiceOrderAudio) return null;
+  const nothingToOrder = isDirectOrder ? false : cart.length === 0;
+
+  useEffect(() => {
+    if (wantsDirectOrder && !isDirectOrder) navigate("/direct-order");
+    else if (nothingToOrder) navigate("/cart");
+  }, [wantsDirectOrder, isDirectOrder, nothingToOrder, navigate]);
+
+  if (nothingToOrder || (wantsDirectOrder && !isDirectOrder)) return null;
 
   const validate = () => {
     const next = {};
@@ -101,8 +130,6 @@ export default function CheckoutPage() {
 
     setSubmitting(true);
     try {
-      const isVoiceOrder = !!voiceOrderAudio;
-
       // Save address locally for future checkouts
       const newSaved = { society: form.society || "", address: form.address.trim() };
       let updatedAddresses = savedAddresses.filter(
@@ -122,10 +149,7 @@ export default function CheckoutPage() {
           address: form.address.trim(),
           paymentMethod,
         },
-        {
-          isVoiceOrder,
-          voiceAudioBlob: voiceOrderAudio,
-        },
+        { orderText: isDirectOrder ? directOrderText : null },
       );
       navigate(`/order/${order.id}`);
     } catch (err) {
@@ -146,7 +170,9 @@ export default function CheckoutPage() {
       {/* Full-page glitter burst the moment the cart qualifies for free
           delivery (Rs 500+). Mounts only while unlocked, so it fires once
           per unlock and stays quiet below the threshold. */}
-      {freeDeliveryUnlocked && <Celebration />}
+      {!isDirectOrder && freeDeliveryOffer && freeDeliveryUnlocked && (
+        <Celebration />
+      )}
 
       {/* Page Header */}
       <div className="add-item-header">
@@ -483,8 +509,8 @@ export default function CheckoutPage() {
               </label>
             </div>
 
-            {/* Delivery charges — locked at Rs 50, gold nudge for FREE */}
-            {!voiceOrderAudio && (
+            {/* Delivery charges — admin-set fee, gold nudge for FREE */}
+            {!isDirectOrder && (
               <div
                 className={`checkout-delivery-banner ${freeDeliveryUnlocked ? "checkout-delivery-banner--unlocked" : ""}`}
               >
@@ -497,28 +523,38 @@ export default function CheckoutPage() {
                 <div className="checkout-delivery-banner-body">
                   <p className="checkout-delivery-banner-title">
                     {freeDeliveryUnlocked
-                      ? "FREE Delivery Unlocked!"
+                      ? freeDeliveryOffer
+                        ? "FREE Delivery Unlocked!"
+                        : "FREE Delivery"
                       : "Delivery Charges"}
                   </p>
                   <p className="checkout-delivery-banner-text">
                     {freeDeliveryUnlocked ? (
-                      "Your order qualifies for free delivery."
-                    ) : (
+                      freeDeliveryOffer ? (
+                        "Your order qualifies for free delivery."
+                      ) : (
+                        "Delivery is free on every order."
+                      )
+                    ) : freeDeliveryOffer ? (
                       <>
-                        Order more than{" "}
+                        Order{" "}
                         <span className="checkout-gold-text">
-                          Rs {FREE_DELIVERY_THRESHOLD}
+                          {formatPrice(storeSettings.freeDeliveryThreshold)}
                         </span>{" "}
-                        and delivery is{" "}
+                        or more and delivery is{" "}
                         <span className="checkout-gold-text">FREE</span>!
                       </>
+                    ) : (
+                      "A flat delivery charge applies to every order."
                     )}
                   </p>
                 </div>
                 <span
                   className={`checkout-delivery-banner-tag ${freeDeliveryUnlocked ? "checkout-delivery-banner-tag--free" : ""}`}
                 >
-                  {freeDeliveryUnlocked ? "FREE" : `Rs ${DELIVERY_CHARGE}`}
+                  {freeDeliveryUnlocked
+                    ? "FREE"
+                    : formatPrice(storeSettings.deliveryFee)}
                 </span>
               </div>
             )}
@@ -609,48 +645,27 @@ export default function CheckoutPage() {
             </div>
 
             <div className="add-item-preview-content" style={{ flex: 1 }}>
-              {voiceOrderAudio ? (
-                <div style={{ textAlign: "center", padding: "1rem" }}>
-                  <p
-                    style={{
-                      color: "#64748b",
-                      marginBottom: "1rem",
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    Your order will be fulfilled based on this voice note.
+              {isDirectOrder ? (
+                <div className="checkout-direct-order">
+                  <p className="checkout-direct-order-label">
+                    📝 Your order list
                   </p>
-                  <audio
-                    controls
-                    src={URL.createObjectURL(voiceOrderAudio)}
-                    style={{
-                      width: "100%",
-                      height: "40px",
-                      borderRadius: "8px",
-                    }}
-                  />
-                  <div
-                    style={{
-                      marginTop: "1.5rem",
-                      padding: "1rem",
-                      background: "#f8fafc",
-                      borderRadius: "8px",
-                    }}
+                  <p className="checkout-direct-order-text">{directOrderText}</p>
+                  <button
+                    type="button"
+                    className="checkout-direct-order-edit"
+                    onClick={() => navigate("/direct-order")}
                   >
-                    <span style={{ color: "#64748b", fontSize: "0.9rem" }}>
-                      Total
-                    </span>
-                    <strong
-                      style={{
-                        display: "block",
-                        fontSize: "1.5rem",
-                        color: "#06b6d4",
-                        marginTop: "0.25rem",
-                      }}
-                    >
-                      To be decided
-                    </strong>
+                    Edit list
+                  </button>
+                  <div className="order-summary-total-box">
+                    <span>Total</span>
+                    <strong>To be decided</strong>
                   </div>
+                  <p className="checkout-direct-order-note">
+                    Our team will check prices and confirm your total before
+                    delivery.
+                  </p>
                 </div>
               ) : (
                 <>
@@ -697,11 +712,21 @@ export default function CheckoutPage() {
                       <span>Subtotal</span>
                       <strong>{formatPrice(cartTotal)}</strong>
                     </div>
+                    {discount > 0 && (
+                      <div className="order-summary-row order-summary-row--discount">
+                        <span>Discount ({describeDiscount(storeSettings)})</span>
+                        <strong>−{formatPrice(discount)}</strong>
+                      </div>
+                    )}
                     <div className="order-summary-row">
                       <span>Delivery</span>
                       {freeDeliveryUnlocked ? (
                         <span className="order-summary-free">
-                          <s>Rs 50</s>{" "}
+                          {storeSettings.deliveryFee > 0 && (
+                            <>
+                              <s>{formatPrice(storeSettings.deliveryFee)}</s>{" "}
+                            </>
+                          )}
                           <span className="checkout-gold-text">FREE</span>
                         </span>
                       ) : (
@@ -710,49 +735,58 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
+                  {hasOrderDiscount(storeSettings) && discountRemaining > 0 && (
+                    <p className="checkout-discount-nudge">
+                      🏷️ Add {formatPrice(discountRemaining)} more to get{" "}
+                      {describeDiscount(storeSettings)} your order.
+                    </p>
+                  )}
+
                   {/* Gold free-delivery progress card */}
-                  <div
-                    className={`free-delivery-card ${freeDeliveryUnlocked ? "free-delivery-card--unlocked" : ""}`}
-                  >
-                    <div className="free-delivery-card-head">
-                      <span
-                        className="free-delivery-card-icon"
-                        aria-hidden="true"
+                  {freeDeliveryOffer && (
+                    <div
+                      className={`free-delivery-card ${freeDeliveryUnlocked ? "free-delivery-card--unlocked" : ""}`}
+                    >
+                      <div className="free-delivery-card-head">
+                        <span
+                          className="free-delivery-card-icon"
+                          aria-hidden="true"
+                        >
+                          {freeDeliveryUnlocked ? "🎉" : "🚚"}
+                        </span>
+                        <div className="free-delivery-card-copy">
+                          <p className="free-delivery-card-title">
+                            {freeDeliveryUnlocked
+                              ? "You've unlocked FREE delivery!"
+                              : `Add ${formatPrice(freeDeliveryRemaining)} more for FREE delivery`}
+                          </p>
+                          <p className="free-delivery-card-text">
+                            {freeDeliveryUnlocked
+                              ? "Enjoy your order — delivery is on us."
+                              : `Orders of ${formatPrice(storeSettings.freeDeliveryThreshold)} or more ship free.`}
+                          </p>
+                        </div>
+                      </div>
+                      <div
+                        className="free-delivery-progress-track"
+                        role="progressbar"
+                        aria-valuenow={freeDeliveryProgress}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
                       >
-                        {freeDeliveryUnlocked ? "🎉" : "🚚"}
-                      </span>
-                      <div className="free-delivery-card-copy">
-                        <p className="free-delivery-card-title">
-                          {freeDeliveryUnlocked
-                            ? "You've unlocked FREE delivery!"
-                            : `Add ${formatPrice(freeDeliveryRemaining)} more for FREE delivery`}
-                        </p>
-                        <p className="free-delivery-card-text">
-                          {freeDeliveryUnlocked
-                            ? "Enjoy your order — delivery is on us."
-                            : `Orders above ${formatPrice(FREE_DELIVERY_THRESHOLD)} ship free.`}
-                        </p>
+                        <div
+                          className="free-delivery-progress-fill"
+                          style={{ width: `${freeDeliveryProgress}%` }}
+                        />
+                      </div>
+                      <div className="free-delivery-progress-labels">
+                        <span>{formatPrice(cartTotal)}</span>
+                        <span className="checkout-gold-text">
+                          {formatPrice(storeSettings.freeDeliveryThreshold)}
+                        </span>
                       </div>
                     </div>
-                    <div
-                      className="free-delivery-progress-track"
-                      role="progressbar"
-                      aria-valuenow={freeDeliveryProgress}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className="free-delivery-progress-fill"
-                        style={{ width: `${freeDeliveryProgress}%` }}
-                      />
-                    </div>
-                    <div className="free-delivery-progress-labels">
-                      <span>{formatPrice(cartTotal)}</span>
-                      <span className="checkout-gold-text">
-                        {formatPrice(FREE_DELIVERY_THRESHOLD)}
-                      </span>
-                    </div>
-                  </div>
+                  )}
 
                   <div className="order-summary-total-box">
                     <span>Total</span>
@@ -773,10 +807,10 @@ export default function CheckoutPage() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate("/cart")}
+                onClick={() => navigate(isDirectOrder ? "/direct-order" : "/cart")}
                 className="add-item-cancel-link"
               >
-                Back to Cart
+                {isDirectOrder ? "Back to Direct Order" : "Back to Cart"}
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { ProductGridSkeleton } from "../components/Skeleton";
 import { useStore } from "../context/StoreContext";
@@ -7,30 +7,58 @@ import {
   getCategoryDisplayName,
   getCategoryDescription,
 } from "../data/categoryStore";
+import {
+  getCategoryEmoji,
+  getCategoryFamilyNames,
+  getMainCategories,
+  getSubcategories,
+} from "../lib/categories";
 
 export default function ProductsPage() {
   const { category } = useParams();
-  const { products, productCategories, productsLoading } = useStore();
-  const [selectedProductCategory, setSelectedProductCategory] = useState("all");
+  const {
+    shopProducts,
+    productCategories,
+    productsLoading,
+    productCategoriesLoading,
+  } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
 
+  const modeProducts = useMemo(
+    () =>
+      shopProducts.filter(
+        (p) => p.inStock && (!category || p.category === category),
+      ),
+    [shopProducts, category],
+  );
+
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      if (!product.inStock) return false;
-      const matchesMode = !category || product.category === category;
-      const matchesProductCategory =
-        selectedProductCategory === "all" ||
-        product.productCategory === selectedProductCategory;
-      const matchesSearch =
-        searchQuery === "" ||
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return modeProducts;
+    return modeProducts.filter(
+      (product) =>
+        product.name.toLowerCase().includes(q) ||
         (product.description &&
-          product.description
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()));
-      return matchesMode && matchesProductCategory && matchesSearch;
-    });
-  }, [products, category, selectedProductCategory, searchQuery]);
+          product.description.toLowerCase().includes(q)),
+    );
+  }, [modeProducts, searchQuery]);
+
+  // One tile per main category; a subcategory's products count toward its
+  // parent, since that's the page the tile opens.
+  const categoryTiles = useMemo(
+    () =>
+      getMainCategories(productCategories).map((cat) => {
+        const names = getCategoryFamilyNames(productCategories, cat.id);
+        return {
+          ...cat,
+          emoji: getCategoryEmoji(cat, modeProducts),
+          count: modeProducts.filter((p) => names.has(p.productCategory))
+            .length,
+          subCount: getSubcategories(productCategories, cat.id).length,
+        };
+      }),
+    [productCategories, modeProducts],
+  );
 
   const categoryDisplayName = category
     ? getCategoryDisplayName(category)
@@ -71,31 +99,48 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Category Filters */}
-      <div className="products-categories">
-        <h2 className="section-title">Browse by Category</h2>
-        <div className="admin-filters">
-          <button
-            className={`filter-btn ${selectedProductCategory === "all" ? "filter-btn-active" : ""}`}
-            onClick={() => setSelectedProductCategory("all")}
-          >
-            All
-          </button>
-          {productCategories.map((cat) => (
-            <button
-              key={cat.id}
-              className={`filter-btn ${selectedProductCategory === cat.name ? "filter-btn-active" : ""}`}
-              onClick={() => setSelectedProductCategory(cat.name)}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Shop by Category — each tile opens that category's page */}
+      {!searchQuery.trim() &&
+        (categoryTiles.length > 0 || productCategoriesLoading) && (
+          <section className="shop-categories" aria-labelledby="shop-cat-title">
+            <h2 id="shop-cat-title" className="section-title">
+              Shop by Category
+            </h2>
+            {categoryTiles.length === 0 ? (
+              <div className="shop-category-grid" aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i} className="skeleton-block shop-category-tile--skeleton" />
+                ))}
+              </div>
+            ) : (
+              <div className="shop-category-grid">
+                {categoryTiles.map((cat) => (
+                  <Link
+                    key={cat.id}
+                    to={`/category/${cat.id}`}
+                    className="shop-category-tile"
+                  >
+                    <span className="shop-category-emoji" aria-hidden="true">
+                      {cat.emoji}
+                    </span>
+                    <span className="shop-category-name">{cat.name}</span>
+                    <span className="shop-category-meta">
+                      {cat.count} item{cat.count !== 1 ? "s" : ""}
+                      {cat.subCount > 0 &&
+                        ` · ${cat.subCount} type${cat.subCount !== 1 ? "s" : ""}`}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
       {/* All Products */}
       <div className="products-all">
-        <h2 className="section-title">All Products</h2>
+        <h2 className="section-title">
+          {searchQuery.trim() ? "Search Results" : "All Products"}
+        </h2>
         <div className="product-grid">
           {filteredProducts.map((product, i) => (
             <div
@@ -112,7 +157,9 @@ export default function ProductsPage() {
         {!productsLoading && filteredProducts.length === 0 && (
           <div className="empty-page">
             <div className="empty-state">
-              No products found matching "{searchQuery}"
+              {searchQuery.trim()
+                ? `No products found matching "${searchQuery}"`
+                : "No products here yet."}
             </div>
           </div>
         )}

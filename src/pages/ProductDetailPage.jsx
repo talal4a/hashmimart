@@ -7,10 +7,14 @@ import ProductCard from "../components/ProductCard";
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
-  const { getProductById, addToCart, toggleWishlist, isInWishlist, products } =
-    useStore();
+  const {
+    getProductById,
+    addToCart,
+    toggleWishlist,
+    isInWishlist,
+    shopProducts,
+  } = useStore();
   const [quantity, setQuantity] = useState(1);
-  const [selectedWholesaleQty, setSelectedWholesaleQty] = useState(null);
 
   const product = getProductById(productId);
 
@@ -31,18 +35,10 @@ export default function ProductDetailPage() {
   const hasDiscount =
     product.salePrice != null && product.salePrice < product.price;
 
-  const priceFor = (base) => {
-    if (product.category === "wholesale" && selectedWholesaleQty) {
-      return base * selectedWholesaleQty;
-    }
-    return base;
-  };
-
-  const getCurrentPrice = () => priceFor(product.salePrice ?? product.price);
-  const getOriginalPrice = () => priceFor(product.price);
+  const currentPrice = product.salePrice ?? product.price;
 
   // Get related products from same category
-  const relatedProducts = products
+  const relatedProducts = shopProducts
     .filter(
       (p) =>
         p.id !== product.id &&
@@ -88,11 +84,6 @@ export default function ProductDetailPage() {
 
         <div className="product-detail-info-new">
           <div className="product-detail-badges">
-            {product.category === "wholesale" && (
-              <span className="product-badge product-badge-wholesale">
-                Wholesale
-              </span>
-            )}
             {!product.inStock && (
               <span className="product-badge product-badge-out">
                 Out of Stock
@@ -108,22 +99,13 @@ export default function ProductDetailPage() {
           <h1 className="product-detail-name-new">{product.name}</h1>
 
           <div className="product-detail-price-new">
-            <span className="price-value-new">
-              {formatPrice(getCurrentPrice())}
-            </span>
+            <span className="price-value-new">{formatPrice(currentPrice)}</span>
             {hasDiscount && (
               <span className="price-original-new">
-                {formatPrice(getOriginalPrice())}
+                {formatPrice(product.price)}
               </span>
             )}
-            {product.category === "wholesale" && selectedWholesaleQty && (
-              <span className="price-unit-new">
-                /{selectedWholesaleQty} {product.unit}
-              </span>
-            )}
-            {product.category === "retail" && (
-              <span className="price-unit-new">/{product.unit}</span>
-            )}
+            <span className="price-unit-new">/{product.unit}</span>
           </div>
 
           {product.description && (
@@ -132,25 +114,7 @@ export default function ProductDetailPage() {
             </p>
           )}
 
-          {product.category === "wholesale" && product.wholesaleOptions && (
-            <div className="product-detail-wholesale-new">
-              <h3 className="product-section-title">Choose Quantity</h3>
-              <div className="wholesale-options-new">
-                {product.wholesaleOptions.map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    className={`wholesale-option-new ${selectedWholesaleQty === option ? "wholesale-option-selected-new" : ""}`}
-                    onClick={() => setSelectedWholesaleQty(option)}
-                  >
-                    {option} {product.unit}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {product.category === "retail" && (
+          {product.inStock && (
             <div className="product-detail-quantity-new">
               <h3 className="product-section-title">Quantity</h3>
               <div className="quantity-selector-new">

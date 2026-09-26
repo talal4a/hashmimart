@@ -7,6 +7,8 @@ Premium fresh groceries delivered fast in Lahore. A modern e-commerce applicatio
 - **Product Catalog**: Browse and search products by category
 - **Shopping Cart & Wishlist**: Add items to cart and wishlist
 - **Order Management**: Place orders and track delivery status
+- **Direct Order (voice → text)**: Speak or type a shopping list; it is transcribed to editable text and sent as the order
+- **Admin pricing**: Admin sets the delivery fee, free-delivery threshold and a store-wide order discount
 - **User Authentication**: Sign up, login, and password reset
 - **Admin Dashboard**: Manage products, orders, and categories
 - **Real-time Chat**: Admin-customer communication
@@ -118,8 +120,8 @@ Any static hosting service works:
 The app uses Supabase for the database. Ensure you have the following tables:
 
 - `products` - Product catalog
-- `product_categories` - Product categories
-- `shopping_modes` - Shopping modes (retail/wholesale)
+- `product_categories` - Product categories (with optional `parent_id` for subcategories)
+- `shopping_modes` - Shopping modes (retail; wholesale is retired and hidden)
 - `orders` - Customer orders
 - `order_items` - Order line items
 - `profiles` - User profiles
@@ -129,6 +131,11 @@ The app uses Supabase for the database. Ensure you have the following tables:
 - `notifications` - Order notifications
 
 Row Level Security (RLS) policies should be configured for proper access control.
+
+After pulling the Direct Order / delivery fee / subcategory changes, run
+`supabase/store-settings-text-orders-subcategories.sql` once in the Supabase
+SQL editor. It adds the `store_settings` table, the `order_text` and price
+breakdown columns on `orders`, and `parent_id` on `product_categories`.
 
 ## Scripts
 

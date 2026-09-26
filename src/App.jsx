@@ -16,6 +16,7 @@ import InstallPromptOverlay from "./components/InstallPromptOverlay";
 import PageLoader from "./components/PageLoader";
 import CategoriesPage from "./pages/CategoriesPage";
 import ProductsPage, { getProductsTitle } from "./pages/ProductsPage";
+import CategoryPage, { useCategoryTitle } from "./pages/CategoryPage";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import CartPage from "./pages/CartPage";
 import WishlistPage from "./pages/WishlistPage";
@@ -44,6 +45,16 @@ function ProductsRoute() {
   return (
     <Layout title={getProductsTitle(category)} showBack backTo="/">
       <ProductsPage key={category ?? "all"} />
+    </Layout>
+  );
+}
+
+function CategoryRoute() {
+  const { categoryId } = useParams();
+  const title = useCategoryTitle(categoryId);
+  return (
+    <Layout title={title} showBack backTo="/products/retail">
+      <CategoryPage key={categoryId} />
     </Layout>
   );
 }
@@ -121,6 +132,7 @@ function AppRoutes() {
       />
       <Route path="/products" element={<ProductsRoute />} />
       <Route path="/products/:category" element={<ProductsRoute />} />
+      <Route path="/category/:categoryId" element={<CategoryRoute />} />
       <Route
         path="/product/:productId"
         element={

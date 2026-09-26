@@ -1,7 +1,13 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { formatPrice } from "../../data/products";
-import { DELIVERY_CHARGE, isFreeDelivery } from "../../lib/delivery";
+import {
+  DEFAULT_STORE_SETTINGS,
+  describeDiscount,
+  getOrderDiscount,
+  isFreeDelivery,
+} from "../../lib/pricing";
+import { getCategoryTree, getMainCategories } from "../../lib/categories";
 import { useStore } from "../../context/StoreContext";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -200,14 +206,21 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
     order.status === "delivered" || order.status === "cancelled";
   const canDelete = isTerminal && order.dbId;
 
-  // deliveryCharge isn't persisted on the orders row, so recompute the
-  // subtotal from the saved line items — the same rule checkout applies
-  // (Rs 500+ ships free). Voice orders are priced later, never free.
+  // New orders store what they were charged. Orders from before that have
+  // no breakdown, so recompute from the line items with the rule that
+  // applied then (Rs 50, free from Rs 500). Voice/text orders are priced
+  // later by staff, never free.
+  const isListOrder = order.isVoiceOrder || Boolean(order.orderText);
+  const hasBreakdown = order.subtotal != null;
   const itemsSubtotal = (order.items || []).reduce(
     (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0),
     0,
   );
-  const freeDelivery = !order.isVoiceOrder && isFreeDelivery(itemsSubtotal);
+  const freeDelivery =
+    !isListOrder &&
+    (hasBreakdown
+      ? order.deliveryCharge === 0
+      : isFreeDelivery(itemsSubtotal, DEFAULT_STORE_SETTINGS));
   const handleUpdate = async (newStatus) => {
     setIsUpdating(true);
     try {
@@ -249,7 +262,7 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
           {freeDelivery && (
             <span
               className="admin-order__free-delivery"
-              title="Order qualifies for free delivery (Rs 500+)"
+              title="Order qualifies for free delivery"
             >
               <svg
                 width="13"
@@ -329,9 +342,21 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
 
         <div className="admin-order__section">
           <h4 className="admin-order__section-title">
-            {order.isVoiceOrder ? "🎙 Voice Request" : "📦 Products"}
+            {order.orderText
+              ? "📝 Direct Order List"
+              : order.isVoiceOrder
+                ? "🎙 Voice Request"
+                : "📦 Products"}
           </h4>
-          {order.isVoiceOrder ? (
+          {order.orderText ? (
+            <div className="admin-order__voice-box">
+              <p className="admin-order__voice-msg">
+                The customer spoke or typed this list. Price it and confirm the
+                total with them.
+              </p>
+              <p className="admin-order__text-list">{order.orderText}</p>
+            </div>
+          ) : order.isVoiceOrder ? (
             <div className="admin-order__voice-box">
               <p className="admin-order__voice-msg">
                 This customer sent a voice note. Listen to fulfill their order.
@@ -377,7 +402,29 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
                   ))}
                 </tbody>
                 <tfoot>
-                  {freeDelivery && (
+                  {hasBreakdown && (
+                    <tr>
+                      <td colSpan="3">
+                        <span className="admin-order__delivery-label">
+                          Subtotal
+                        </span>
+                      </td>
+                      <td>{formatPrice(order.subtotal)}</td>
+                    </tr>
+                  )}
+                  {hasBreakdown && order.discountAmount > 0 && (
+                    <tr>
+                      <td colSpan="3">
+                        <span className="admin-order__delivery-label">
+                          Discount
+                        </span>
+                      </td>
+                      <td className="admin-order__discount">
+                        −{formatPrice(order.discountAmount)}
+                      </td>
+                    </tr>
+                  )}
+                  {freeDelivery ? (
                     <tr>
                       <td colSpan="3">
                         <span className="admin-order__delivery-label">
@@ -385,11 +432,20 @@ function OrderCard({ order, onUpdateStatus, selected, onToggleSelect }) {
                         </span>
                       </td>
                       <td>
-                        <span className="admin-order__delivery-free">
-                          <s>{formatPrice(DELIVERY_CHARGE)}</s> FREE
-                        </span>
+                        <span className="admin-order__delivery-free">FREE</span>
                       </td>
                     </tr>
+                  ) : (
+                    hasBreakdown && (
+                      <tr>
+                        <td colSpan="3">
+                          <span className="admin-order__delivery-label">
+                            Delivery
+                          </span>
+                        </td>
+                        <td>{formatPrice(order.deliveryCharge ?? 0)}</td>
+                      </tr>
+                    )
                   )}
                   <tr>
                     <td colSpan="3">
@@ -508,6 +564,14 @@ function ProductCard({ product, onEdit, onToggleStock, onDeleteProduct }) {
         {product.productCategory && (
           <span className="tag">{product.productCategory}</span>
         )}
+        {product.category === "wholesale" && (
+          <span
+            className="tag tag-hidden"
+            title="Wholesale was removed from the shop. Edit this product to move it to Retail, or delete it."
+          >
+            Wholesale (hidden)
+          </span>
+        )}
       </div>
       <div className="admin-product-card__actions">
         <button
@@ -540,7 +604,387 @@ function ProductCard({ product, onEdit, onToggleStock, onDeleteProduct }) {
   );
 }
 
-function DiscountManager({ products, onUpdateProduct }) {
+// Rupee inputs are kept as strings while typing; this reads them back.
+const parseAmount = (v) => {
+  const n = Number(v);
+  return v === "" || !Number.isFinite(n) ? NaN : n;
+};
+
+function SettingsToggle({ checked, onChange, label, id }) {
+  return (
+    <label className="settings-toggle" htmlFor={id}>
+      <input
+        id={id}
+        type="checkbox"
+        role="switch"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="settings-toggle__track" aria-hidden="true">
+        <span className="settings-toggle__thumb" />
+      </span>
+      <span className="settings-toggle__label">{label}</span>
+    </label>
+  );
+}
+
+/* Store-wide discount: taken off the whole order at checkout, on top of any
+   per-product sale prices below. */
+function StoreDiscountSettings({ settings, onSave, showToast }) {
+  const [enabled, setEnabled] = useState(settings.discountEnabled);
+  const [type, setType] = useState(settings.discountType);
+  const [value, setValue] = useState(
+    settings.discountValue ? String(settings.discountValue) : "",
+  );
+  const [minOrder, setMinOrder] = useState(
+    settings.discountMinOrder ? String(settings.discountMinOrder) : "",
+  );
+  const [saving, setSaving] = useState(false);
+
+  const valueNum = parseAmount(value);
+  const minNum = minOrder === "" ? 0 : parseAmount(minOrder);
+  let error = "";
+  if (enabled) {
+    if (Number.isNaN(valueNum) || valueNum <= 0) {
+      error = "Enter a discount above 0.";
+    } else if (type === "percentage" && valueNum > 100) {
+      error = "A percentage can't be more than 100.";
+    }
+  }
+  if (!error && (Number.isNaN(minNum) || minNum < 0)) {
+    error = "Minimum order must be 0 or more.";
+  }
+
+  const draft = {
+    ...settings,
+    discountEnabled: enabled,
+    discountType: type,
+    discountValue: Number.isNaN(valueNum) ? 0 : valueNum,
+    discountMinOrder: Number.isNaN(minNum) ? 0 : minNum,
+  };
+  const dirty =
+    draft.discountEnabled !== settings.discountEnabled ||
+    draft.discountType !== settings.discountType ||
+    draft.discountValue !== settings.discountValue ||
+    draft.discountMinOrder !== settings.discountMinOrder;
+
+  const exampleSubtotal = Math.max(draft.discountMinOrder, 2000);
+  const exampleSaving = getOrderDiscount(exampleSubtotal, draft);
+
+  const handleSave = async () => {
+    if (error || !dirty) return;
+    setSaving(true);
+    const result = await onSave({
+      discountEnabled: draft.discountEnabled,
+      discountType: draft.discountType,
+      discountValue: draft.discountValue,
+      discountMinOrder: draft.discountMinOrder,
+    });
+    setSaving(false);
+    if (result?.error) showToast(result.error, "error");
+    else showToast("Store discount saved", "success");
+  };
+
+  return (
+    <section className="settings-card" aria-labelledby="store-discount-title">
+      <div className="settings-card__head">
+        <div>
+          <h2 id="store-discount-title" className="settings-card__title">
+            Store-wide discount
+          </h2>
+          <p className="settings-card__desc">
+            Taken off the whole order at checkout, on top of product sale
+            prices.
+          </p>
+        </div>
+        <SettingsToggle
+          id="store-discount-enabled"
+          checked={enabled}
+          onChange={setEnabled}
+          label={enabled ? "On" : "Off"}
+        />
+      </div>
+
+      <fieldset className="settings-card__body" disabled={!enabled}>
+        <div className="discount-type-toggle">
+          <button
+            type="button"
+            className={`btn btn-sm ${type === "percentage" ? "btn-primary" : "btn-secondary"}`}
+            onClick={() => setType("percentage")}
+          >
+            Percentage (%)
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${type === "fixed" ? "btn-primary" : "btn-secondary"}`}
+            onClick={() => setType("fixed")}
+          >
+            Fixed Amount (Rs)
+          </button>
+        </div>
+
+        <div className="settings-card__fields">
+          <div className="field">
+            <label className="field-label" htmlFor="store-discount-value">
+              {type === "percentage" ? "Discount (%)" : "Discount (Rs)"}
+            </label>
+            <input
+              id="store-discount-value"
+              type="number"
+              inputMode="decimal"
+              className="text-input"
+              min="0"
+              max={type === "percentage" ? "100" : undefined}
+              placeholder={type === "percentage" ? "e.g. 10" : "e.g. 100"}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="store-discount-min">
+              Minimum order (Rs)
+            </label>
+            <input
+              id="store-discount-min"
+              type="number"
+              inputMode="decimal"
+              className="text-input"
+              min="0"
+              placeholder="0 = every order"
+              value={minOrder}
+              onChange={(e) => setMinOrder(e.target.value)}
+            />
+          </div>
+        </div>
+      </fieldset>
+
+      {error ? (
+        <p className="settings-card__error">{error}</p>
+      ) : (
+        <p className="settings-card__preview">
+          {enabled
+            ? `Customers get ${describeDiscount(draft)}${
+                draft.discountMinOrder > 0
+                  ? ` on orders of ${formatPrice(draft.discountMinOrder)} or more`
+                  : " on every order"
+              } — e.g. ${formatPrice(exampleSaving)} off a ${formatPrice(exampleSubtotal)} order.`
+            : "No store-wide discount. Customers pay full cart prices."}
+        </p>
+      )}
+
+      <div className="settings-card__actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={Boolean(error) || !dirty || saving}
+        >
+          {saving ? "Saving…" : "Save Discount"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/* Delivery Fees tab: stats + the fee form. The form is keyed on the saved
+   values so it resets after a save; the toast lives out here so that
+   remount doesn't swallow it. */
+function DeliverySettings({ settings, orders, onSave }) {
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type) => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const collected = orders
+    .filter((o) => o.status === "delivered" && o.deliveryCharge != null)
+    .reduce((sum, o) => sum + o.deliveryCharge, 0);
+
+  return (
+    <div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="admin-stats-row">
+        <SparklineCard
+          icon="🚚"
+          color="blue"
+          title="Current Delivery Fee"
+          value={
+            settings.deliveryFee > 0 ? formatPrice(settings.deliveryFee) : "FREE"
+          }
+          data={[]}
+        />
+        <SparklineCard
+          icon="💵"
+          color="green"
+          title="Delivery Fees Collected"
+          value={formatPrice(collected)}
+          data={[]}
+        />
+      </div>
+
+      <DeliveryFeeForm
+        key={`${settings.deliveryFee}-${settings.freeDeliveryEnabled}-${settings.freeDeliveryThreshold}`}
+        settings={settings}
+        onSave={onSave}
+        showToast={showToast}
+      />
+    </div>
+  );
+}
+
+function DeliveryFeeForm({ settings, onSave, showToast }) {
+  const [fee, setFee] = useState(String(settings.deliveryFee));
+  const [freeEnabled, setFreeEnabled] = useState(settings.freeDeliveryEnabled);
+  const [threshold, setThreshold] = useState(
+    String(settings.freeDeliveryThreshold),
+  );
+  const [saving, setSaving] = useState(false);
+
+  const feeNum = parseAmount(fee);
+  const thresholdNum = parseAmount(threshold);
+  let error = "";
+  if (Number.isNaN(feeNum) || feeNum < 0) {
+    error = "Delivery fee must be 0 or more.";
+  } else if (
+    freeEnabled &&
+    feeNum > 0 &&
+    (Number.isNaN(thresholdNum) || thresholdNum < 0)
+  ) {
+    error = "Free-delivery amount must be 0 or more.";
+  }
+
+  const draft = {
+    ...settings,
+    deliveryFee: Number.isNaN(feeNum) ? 0 : feeNum,
+    freeDeliveryEnabled: freeEnabled,
+    freeDeliveryThreshold: Number.isNaN(thresholdNum)
+      ? settings.freeDeliveryThreshold
+      : thresholdNum,
+  };
+  const dirty =
+    draft.deliveryFee !== settings.deliveryFee ||
+    draft.freeDeliveryEnabled !== settings.freeDeliveryEnabled ||
+    draft.freeDeliveryThreshold !== settings.freeDeliveryThreshold;
+
+  let preview;
+  if (draft.deliveryFee <= 0) {
+    preview = "Delivery is free on every order.";
+  } else if (draft.freeDeliveryEnabled) {
+    preview = `Orders below ${formatPrice(draft.freeDeliveryThreshold)} pay ${formatPrice(draft.deliveryFee)} delivery. Orders of ${formatPrice(draft.freeDeliveryThreshold)} or more get FREE delivery.`;
+  } else {
+    preview = `Every order pays ${formatPrice(draft.deliveryFee)} delivery.`;
+  }
+
+  const handleSave = async () => {
+    if (error || !dirty) return;
+    setSaving(true);
+    const result = await onSave({
+      deliveryFee: draft.deliveryFee,
+      freeDeliveryEnabled: draft.freeDeliveryEnabled,
+      freeDeliveryThreshold: draft.freeDeliveryThreshold,
+    });
+    setSaving(false);
+    if (result?.error) showToast(result.error, "error");
+    else showToast("Delivery fees saved", "success");
+  };
+
+  return (
+    <section className="settings-card" aria-labelledby="delivery-fee-title">
+      <div className="settings-card__head">
+        <div>
+          <h2 id="delivery-fee-title" className="settings-card__title">
+            Delivery fees
+          </h2>
+          <p className="settings-card__desc">
+            Charged on every cart order at checkout. Direct Orders are priced
+            by your team.
+          </p>
+        </div>
+      </div>
+
+      <div className="settings-card__body">
+        <div className="settings-card__fields">
+          <div className="field">
+            <label className="field-label" htmlFor="delivery-fee">
+              Delivery fee (Rs)
+            </label>
+            <input
+              id="delivery-fee"
+              type="number"
+              inputMode="decimal"
+              className="text-input"
+              min="0"
+              placeholder="e.g. 50"
+              value={fee}
+              onChange={(e) => setFee(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="settings-card__row">
+          <SettingsToggle
+            id="free-delivery-enabled"
+            checked={freeEnabled}
+            onChange={setFreeEnabled}
+            label="Free delivery above an order amount"
+          />
+        </div>
+
+        {freeEnabled && (
+          <div className="settings-card__fields">
+            <div className="field">
+              <label className="field-label" htmlFor="free-delivery-threshold">
+                Free delivery from (Rs)
+              </label>
+              <input
+                id="free-delivery-threshold"
+                type="number"
+                inputMode="decimal"
+                className="text-input"
+                min="0"
+                placeholder="e.g. 500"
+                value={threshold}
+                onChange={(e) => setThreshold(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {error ? (
+        <p className="settings-card__error">{error}</p>
+      ) : (
+        <p className="settings-card__preview">{preview}</p>
+      )}
+
+      <div className="settings-card__actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={Boolean(error) || !dirty || saving}
+        >
+          {saving ? "Saving…" : "Save Delivery Fees"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function DiscountManager({
+  products,
+  onUpdateProduct,
+  storeSettings,
+  onSaveSettings,
+}) {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [discountAmount, setDiscountAmount] = useState("");
   const [discountType, setDiscountType] = useState("percentage");
@@ -576,7 +1020,7 @@ function DiscountManager({ products, onUpdateProduct }) {
     }
   };
 
-  const handleApplyDiscount = () => {
+  const handleApplyDiscount = async () => {
     if (!selectedProduct || !discountAmount) return;
 
     let salePrice;
@@ -596,17 +1040,27 @@ function DiscountManager({ products, onUpdateProduct }) {
       salePrice = selectedProduct.price - amount;
     }
 
-    onUpdateProduct(selectedProduct.id, {
+    const result = await onUpdateProduct(selectedProduct.id, {
       salePrice: Math.round(salePrice * 100) / 100,
     });
+    if (result?.error) {
+      showToast(result.error, "error");
+      return;
+    }
     showToast("Discount applied successfully", "success");
     setSelectedProduct(null);
     setDiscountAmount("");
   };
 
-  const handleRemoveDiscount = () => {
+  const handleRemoveDiscount = async () => {
     if (!selectedProduct) return;
-    onUpdateProduct(selectedProduct.id, { salePrice: null });
+    const result = await onUpdateProduct(selectedProduct.id, {
+      salePrice: null,
+    });
+    if (result?.error) {
+      showToast(result.error, "error");
+      return;
+    }
     showToast("Discount removed", "success");
     setSelectedProduct(null);
     setDiscountAmount("");
@@ -619,6 +1073,15 @@ function DiscountManager({ products, onUpdateProduct }) {
           message={toast.message}
           type={toast.type}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {!selectedProduct && (
+        <StoreDiscountSettings
+          key={`${storeSettings.discountEnabled}-${storeSettings.discountType}-${storeSettings.discountValue}-${storeSettings.discountMinOrder}`}
+          settings={storeSettings}
+          onSave={onSaveSettings}
+          showToast={showToast}
         />
       )}
 
@@ -641,7 +1104,8 @@ function DiscountManager({ products, onUpdateProduct }) {
 
       {!selectedProduct ? (
         <>
-          <h2 className="section-title">Products with Discounts</h2>
+          <h2 className="section-title">Product sale prices</h2>
+          <h3 className="admin-subsection-title">Products with Discounts</h3>
           {discountedProducts.length === 0 ? (
             <div className="empty-page">
               <p className="empty-state">No products with discounts yet.</p>
@@ -693,9 +1157,9 @@ function DiscountManager({ products, onUpdateProduct }) {
             </div>
           )}
 
-          <h2 className="section-title" style={{ marginTop: "2rem" }}>
+          <h3 className="admin-subsection-title" style={{ marginTop: "2rem" }}>
             Add Discount to Product
-          </h2>
+          </h3>
           <div className="product-grid">
             {nonDiscountedProducts.map((product) => (
               <div
@@ -857,6 +1321,44 @@ function DiscountManager({ products, onUpdateProduct }) {
   );
 }
 
+function ParentSelect({ id, value, onChange, options, disabled, title }) {
+  return (
+    <div className="checkout-select-wrap category-parent-select">
+      <select
+        id={id}
+        className="text-input checkout-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        title={title}
+        aria-label="Parent category"
+      >
+        <option value="">Main category</option>
+        {options.map((c) => (
+          <option key={c.id} value={c.id}>
+            Inside {c.name}
+          </option>
+        ))}
+      </select>
+      <svg
+        className="checkout-select-caret"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
+
 function ProductCategoriesManager({
   productCategories,
   products,
@@ -867,8 +1369,10 @@ function ProductCategoriesManager({
 }) {
   const [search, setSearch] = useState("");
   const [newName, setNewName] = useState("");
+  const [newParentId, setNewParentId] = useState("");
   const [editingCat, setEditingCat] = useState(null);
   const [editName, setEditName] = useState("");
+  const [editParentId, setEditParentId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [toast, setToast] = useState(null);
 
@@ -877,6 +1381,12 @@ function ProductCategoriesManager({
     [productCategories],
   );
   const productsTrend = useMemo(() => generateTrendData(products), [products]);
+
+  const mainCategories = useMemo(
+    () => getMainCategories(productCategories),
+    [productCategories],
+  );
+  const subcategoryCount = productCategories.length - mainCategories.length;
 
   const productCountMap = useMemo(() => {
     const map = {};
@@ -887,10 +1397,35 @@ function ProductCategoriesManager({
     return map;
   }, [products]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return productCategories;
-    const q = search.toLowerCase();
-    return productCategories.filter((c) => c.name.toLowerCase().includes(q));
+  const childCountMap = useMemo(() => {
+    const map = {};
+    productCategories.forEach((c) => {
+      if (c.parentId) map[c.parentId] = (map[c.parentId] || 0) + 1;
+    });
+    return map;
+  }, [productCategories]);
+
+  const parentNameById = useMemo(
+    () => Object.fromEntries(productCategories.map((c) => [c.id, c.name])),
+    [productCategories],
+  );
+
+  // Main categories each followed by their subcategories. While searching,
+  // a match keeps its row; a matching subcategory also keeps its parent row
+  // so it still reads in context.
+  const rows = useMemo(() => {
+    const tree = getCategoryTree(productCategories);
+    const q = search.trim().toLowerCase();
+    if (!q) return tree;
+    const matches = new Set(
+      tree.filter((c) => c.name.toLowerCase().includes(q)).map((c) => c.id),
+    );
+    return tree.filter(
+      (c) =>
+        matches.has(c.id) ||
+        (c.depth === 0 &&
+          tree.some((sub) => sub.parentId === c.id && matches.has(sub.id))),
+    );
   }, [productCategories, search]);
 
   const showToast = (message, type) => {
@@ -902,24 +1437,25 @@ function ProductCategoriesManager({
   // is a pending Promise, `result?.error` is always undefined, and every
   // failure reported success.
   const handleAdd = async () => {
-    const result = await onAdd(newName);
+    const result = await onAdd(newName, newParentId || null);
     if (result?.error) {
       showToast(result.error, "error");
     } else {
-      showToast("Category added", "success");
+      showToast(newParentId ? "Subcategory added" : "Category added", "success");
       setNewName("");
     }
   };
 
   const handleEdit = async () => {
     if (!editingCat) return;
-    const result = await onEdit(editingCat.id, editName);
+    const result = await onEdit(editingCat.id, editName, editParentId || null);
     if (result?.error) {
       showToast(result.error, "error");
     } else {
       showToast("Category updated", "success");
       setEditingCat(null);
       setEditName("");
+      setEditParentId("");
     }
   };
 
@@ -957,8 +1493,15 @@ function ProductCategoriesManager({
           icon="🏷️"
           color="orange"
           title="Categories"
-          value={productCategories.length}
+          value={mainCategories.length}
           data={categoriesTrend}
+        />
+        <SparklineCard
+          icon="🗂️"
+          color="indigo"
+          title="Subcategories"
+          value={subcategoryCount}
+          data={[]}
         />
         <SparklineCard
           icon="📦"
@@ -996,7 +1539,11 @@ function ProductCategoriesManager({
         <input
           type="text"
           className="text-input category-add-row__input"
-          placeholder="New category name"
+          placeholder={
+            newParentId
+              ? `New subcategory in ${parentNameById[newParentId] || "…"}`
+              : "New category name"
+          }
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => {
@@ -1006,13 +1553,23 @@ function ProductCategoriesManager({
             }
           }}
         />
+        <ParentSelect
+          id="new-category-parent"
+          value={newParentId}
+          onChange={setNewParentId}
+          options={mainCategories}
+        />
         <button className="btn btn-primary btn-icon-inline" onClick={handleAdd}>
           <IconPlus size={18} />
           Add
         </button>
       </div>
+      <p className="category-add-hint">
+        Pick &ldquo;Inside …&rdquo; to add a subcategory. Subcategories show as
+        tabs at the top of their category&rsquo;s page in the shop.
+      </p>
 
-      {filtered.length === 0 ? (
+      {rows.length === 0 ? (
         <div className="empty-page">
           <p className="empty-state">
             {search
@@ -1022,11 +1579,15 @@ function ProductCategoriesManager({
         </div>
       ) : (
         <div className="category-list">
-          {filtered.map((cat) => {
+          {rows.map((cat) => {
             const count = productCountMap[cat.name] || 0;
+            const children = childCountMap[cat.id] || 0;
             const isEditing = editingCat?.id === cat.id;
             return (
-              <div key={cat.id} className="category-row">
+              <div
+                key={cat.id}
+                className={`category-row ${cat.depth ? "category-row--sub" : ""}`}
+              >
                 {isEditing ? (
                   <div className="category-row__edit">
                     <input
@@ -1042,6 +1603,18 @@ function ProductCategoriesManager({
                       }}
                       autoFocus
                     />
+                    <ParentSelect
+                      id={`edit-parent-${cat.id}`}
+                      value={editParentId}
+                      onChange={setEditParentId}
+                      options={mainCategories.filter((c) => c.id !== cat.id)}
+                      disabled={children > 0}
+                      title={
+                        children > 0
+                          ? "Has subcategories, so it stays a main category"
+                          : undefined
+                      }
+                    />
                     <button
                       className="btn btn-primary btn-sm"
                       onClick={handleEdit}
@@ -1053,6 +1626,7 @@ function ProductCategoriesManager({
                       onClick={() => {
                         setEditingCat(null);
                         setEditName("");
+                        setEditParentId("");
                       }}
                     >
                       Cancel
@@ -1066,9 +1640,23 @@ function ProductCategoriesManager({
                         onNavigateToProducts && onNavigateToProducts(cat.name)
                       }
                     >
-                      <div className="category-row__name">{cat.name}</div>
+                      <div className="category-row__name">
+                        {cat.depth > 0 && (
+                          <span className="category-row__branch" aria-hidden="true">
+                            ↳
+                          </span>
+                        )}
+                        {cat.name}
+                        {cat.depth > 0 && (
+                          <span className="category-row__parent">
+                            in {parentNameById[cat.parentId]}
+                          </span>
+                        )}
+                      </div>
                       <div className="category-row__meta">
                         {count} product{count !== 1 ? "s" : ""}
+                        {children > 0 &&
+                          ` · ${children} subcategor${children !== 1 ? "ies" : "y"}`}
                         {cat.createdAt && (
                           <span>
                             {" "}
@@ -1090,6 +1678,7 @@ function ProductCategoriesManager({
                       onClick={() => {
                         setEditingCat(cat);
                         setEditName(cat.name);
+                        setEditParentId(cat.parentId || "");
                       }}
                     >
                       Edit
@@ -1376,6 +1965,8 @@ export default function AdminDashboard() {
     addSociety,
     editSociety,
     deleteSociety,
+    storeSettings,
+    updateStoreSettings,
   } = useStore();
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -1735,7 +2326,18 @@ export default function AdminDashboard() {
           }}
         />
       ) : activeTab === "discounts" ? (
-        <DiscountManager products={products} onUpdateProduct={updateProduct} />
+        <DiscountManager
+          products={products}
+          onUpdateProduct={updateProduct}
+          storeSettings={storeSettings}
+          onSaveSettings={updateStoreSettings}
+        />
+      ) : activeTab === "delivery" ? (
+        <DeliverySettings
+          settings={storeSettings}
+          orders={orders}
+          onSave={updateStoreSettings}
+        />
       ) : activeTab === "societies" ? (
         <SocietiesManager
           societies={societies}
@@ -1827,13 +2429,19 @@ export default function AdminDashboard() {
 
               <div className="admin-toolbar">
                 <div className="admin-filters">
-                  {productCategories.map((cat) => (
+                  <button
+                    className={`filter-btn ${productFilter === "all" ? "filter-btn-active" : ""}`}
+                    onClick={() => setProductFilter("all")}
+                  >
+                    All
+                  </button>
+                  {getCategoryTree(productCategories).map((cat) => (
                     <button
                       key={cat.id}
                       className={`filter-btn ${productFilter === cat.name ? "filter-btn-active" : ""}`}
                       onClick={() => setProductFilter(cat.name)}
                     >
-                      {cat.name}
+                      {cat.depth > 0 ? `↳ ${cat.name}` : cat.name}
                     </button>
                   ))}
                 </div>
