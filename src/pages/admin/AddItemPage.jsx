@@ -40,7 +40,14 @@ export default function AddItemPage({
     }));
   };
 
-  const isFormValid = formData.name && formData.category && formData.price;
+  // The shop only reaches products through their category, so a product
+  // saved without one would be invisible to customers.
+  const needsCategory = (productCategories?.length ?? 0) > 0;
+  const isFormValid =
+    formData.name &&
+    formData.category &&
+    formData.price &&
+    (!needsCategory || formData.productCategory);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -173,7 +180,9 @@ export default function AddItemPage({
 
             <div className="add-item-grid">
               <div className="add-item-field">
-                <label className="add-item-label">Product Category</label>
+                <label className="add-item-label">
+                  Product Category{needsCategory ? " *" : ""}
+                </label>
                 <select
                   name="productCategory"
                   value={formData.productCategory}

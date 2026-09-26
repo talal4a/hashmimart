@@ -61,16 +61,6 @@ export default function ProductsPage() {
     [productCategories, modeProducts],
   );
 
-  // Categories come first and products only open from a category, so an
-  // item with no (or an unknown) category would be unreachable — list those
-  // under the tiles instead.
-  const uncategorized = useMemo(() => {
-    // Before categories load, everything would look uncategorized.
-    if (productCategoriesLoading && productCategories.length === 0) return [];
-    const known = new Set(productCategories.map((c) => c.name));
-    return modeProducts.filter((p) => !known.has(p.productCategory));
-  }, [productCategories, productCategoriesLoading, modeProducts]);
-
   const categoryDisplayName = category
     ? getCategoryDisplayName(category)
     : "All Products";
@@ -136,68 +126,46 @@ export default function ProductsPage() {
           )}
         </div>
       ) : (
-        <>
-          {/* Categories first — each tile opens that category's products */}
-          <section className="shop-categories" aria-labelledby="shop-cat-title">
-            <h2 id="shop-cat-title" className="section-title">
-              Shop by Category
-            </h2>
-            {categoryTiles.length > 0 ? (
-              <div className="shop-category-grid">
-                {categoryTiles.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    to={`/category/${cat.id}`}
-                    className="shop-category-tile"
-                  >
-                    <span className="shop-category-emoji" aria-hidden="true">
-                      {cat.emoji}
-                    </span>
-                    <span className="shop-category-name">{cat.name}</span>
-                    <span className="shop-category-meta">
-                      {cat.count} item{cat.count !== 1 ? "s" : ""}
-                      {cat.subCount > 0 &&
-                        ` · ${cat.subCount} type${cat.subCount !== 1 ? "s" : ""}`}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            ) : productCategoriesLoading ? (
-              <div className="shop-category-grid" aria-hidden="true">
-                {Array.from({ length: 6 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="skeleton-block shop-category-tile--skeleton"
-                  />
-                ))}
-              </div>
-            ) : (
-              uncategorized.length === 0 && (
-                <div className="empty-page">
-                  <div className="empty-state">No categories yet.</div>
-                </div>
-              )
-            )}
-          </section>
-
-          {uncategorized.length > 0 && (
-            <div className="products-all">
-              <h2 className="section-title">
-                {categoryTiles.length > 0 ? "Other items" : "Products"}
-              </h2>
-              <div className="product-grid">
-                {uncategorized.map((product, i) => (
-                  <div
-                    key={product.id}
-                    className={`animate-slide-up stagger-${Math.min(i + 1, 8)}`}
-                  >
-                    <ProductCard product={product} />
-                  </div>
-                ))}
-              </div>
+        /* Only categories here — tapping one opens its products */
+        <section className="shop-categories" aria-labelledby="shop-cat-title">
+          <h2 id="shop-cat-title" className="section-title">
+            Shop by Category
+          </h2>
+          {categoryTiles.length > 0 ? (
+            <div className="shop-category-grid">
+              {categoryTiles.map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/category/${cat.id}`}
+                  className="shop-category-tile"
+                >
+                  <span className="shop-category-emoji" aria-hidden="true">
+                    {cat.emoji}
+                  </span>
+                  <span className="shop-category-name">{cat.name}</span>
+                  <span className="shop-category-meta">
+                    {cat.count} item{cat.count !== 1 ? "s" : ""}
+                    {cat.subCount > 0 &&
+                      ` · ${cat.subCount} type${cat.subCount !== 1 ? "s" : ""}`}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : productCategoriesLoading ? (
+            <div className="shop-category-grid" aria-hidden="true">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div
+                  key={i}
+                  className="skeleton-block shop-category-tile--skeleton"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-page">
+              <div className="empty-state">No categories yet.</div>
             </div>
           )}
-        </>
+        </section>
       )}
     </div>
   );
