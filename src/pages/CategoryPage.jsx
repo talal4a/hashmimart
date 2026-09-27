@@ -4,7 +4,6 @@ import ProductCard from "../components/ProductCard";
 import { ProductGridSkeleton, SkeletonBlock } from "../components/Skeleton";
 import { useStore } from "../context/StoreContext";
 import {
-  getCategoryEmoji,
   getCategoryFamilyNames,
   getSubcategories,
 } from "../lib/categories";
@@ -85,9 +84,6 @@ export default function CategoryPage() {
   return (
     <div className="category-page">
       <header className="category-page-header">
-        <span className="category-page-emoji" aria-hidden="true">
-          {getCategoryEmoji(category, shopProducts)}
-        </span>
         <div className="category-page-heading">
           <h1 className="category-page-title">{category.name}</h1>
           <p className="category-page-count">
@@ -104,9 +100,6 @@ export default function CategoryPage() {
             aria-pressed={!selectedSub}
             onClick={() => selectSub(null)}
           >
-            <span className="subcategory-chip-emoji" aria-hidden="true">
-              {getCategoryEmoji(category, shopProducts)}
-            </span>
             <span className="subcategory-chip-name">All</span>
           </button>
           {subcategories.map((sub) => (
@@ -117,9 +110,6 @@ export default function CategoryPage() {
               aria-pressed={selectedSub?.id === sub.id}
               onClick={() => selectSub(sub.id)}
             >
-              <span className="subcategory-chip-emoji" aria-hidden="true">
-                {getCategoryEmoji(sub, shopProducts)}
-              </span>
               <span className="subcategory-chip-name">{sub.name}</span>
               <span className="subcategory-chip-count">{countFor(sub.name)}</span>
             </button>

@@ -8,7 +8,6 @@ import {
   getCategoryDescription,
 } from "../data/categoryStore";
 import {
-  getCategoryEmoji,
   getCategoryFamilyNames,
   getMainCategories,
   getSubcategories,
@@ -52,7 +51,6 @@ export default function ProductsPage() {
         const names = getCategoryFamilyNames(productCategories, cat.id);
         return {
           ...cat,
-          emoji: getCategoryEmoji(cat, modeProducts),
           count: modeProducts.filter((p) => names.has(p.productCategory))
             .length,
           subCount: getSubcategories(productCategories, cat.id).length,
@@ -139,9 +137,6 @@ export default function ProductsPage() {
                   to={`/category/${cat.id}`}
                   className="shop-category-tile"
                 >
-                  <span className="shop-category-emoji" aria-hidden="true">
-                    {cat.emoji}
-                  </span>
                   <span className="shop-category-name">{cat.name}</span>
                   <span className="shop-category-meta">
                     {cat.count} item{cat.count !== 1 ? "s" : ""}
